@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ group['name'] }} Members</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    <h2>{{ group['name'] }} — Members</h2>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:1rem;">
+      {% for m in members %}
+        <a href="/user/{{ m['id'] }}" style="text-decoration:none; color:inherit;">
+          <div style="background:white; padding:1rem; border-radius:8px; text-align:center;">
+            <div style="width:80px; height:80px; margin:0 auto 0.5rem; border-radius:50%; overflow:hidden; border:2px solid #667eea;">
+              {% if m['profile_pic'] %}
+                <img src="{{ m['profile_pic'] }}" style="width:100%; height:100%; object-fit:cover;">
+              {% else %}
+                <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">{{ m['username'][0].upper() }}</div>
+              {% endif %}
+            </div>
+            <div style="font-weight:700;">{{ m['username'] }}</div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</body>
+</html>

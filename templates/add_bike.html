@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Add Bike</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="form-container">
+    <div class="form-card" style="max-width:700px;">
+      <h2>🏍️ Add Your Bike</h2>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="name">Bike Name</label>
+          <input type="text" id="name" name="name" placeholder="e.g. My Street Bike" required>
+        </div>
+
+        <div class="form-group">
+          <label for="make_model">Make / Model</label>
+          <input type="text" id="make_model" name="make_model" placeholder="e.g. Honda CB500">
+        </div>
+
+        <div class="form-group">
+          <label for="year">Year</label>
+          <input type="number" id="year" name="year" placeholder="2020" min="1900" max="2100">
+        </div>
+
+        <div class="form-group">
+          <label for="odo">Current Odometer (km)</label>
+          <input type="number" id="odo" name="odo" step="0.1" placeholder="5000" value="0">
+        </div>
+
+        <div class="form-group">
+          <label for="bike_image">Bike Photo</label>
+          <label class="upload-btn">
+            <span class="icon">🖼️</span>
+            <span>Choose Photo</span>
+            <input class="hidden-file-input" type="file" id="bike_image" name="bike_image" accept="image/*" onchange="updatePreview(this, 'bikePreview')">
+          </label>
+          <span id="bikePreview" class="file-preview"></span>
+          <div class="upload-note">JPG, PNG, GIF (max size: 5MB)</div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Notes / Description</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Add details about your bike..."></textarea>
+        </div>
+
+        <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+          <div class="toggle">
+            <label style="font-weight:600; color:#333;">Visibility</label>
+            <label class="switch">
+              <input type="checkbox" name="is_private">
+              <span class="knob"></span>
+            </label>
+            <div style="color:#888; font-size:0.9rem;">Toggle to mark private</div>
+          </div>
+          <div style="text-align:right;">
+            <button type="submit" class="btn">Add Bike</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function updatePreview(input, targetId) {
+      const label = document.getElementById(targetId);
+      if (!input.files || !input.files.length) { label.textContent = ''; return; }
+      label.textContent = input.files[0].name;
+    }
+  </script>
+</body>
+</html>

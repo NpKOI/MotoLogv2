@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Tools</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="navbar">
+      <div class="brand">🏍️ MotoLog</div>
+      <div class="navbar-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/leaderboard">Leaderboard</a>
+        <a href="/tools">Tools</a>
+        <a href="/logout">Logout</a>
+      </div>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <h2 style="margin-bottom:1rem; color:#222;">🧰 Tools</h2>
+
+    <div class="leaderboard-tabs" style="margin-bottom:1.5rem;">
+      <button class="tab-button" data-tab="maint" onclick="showTab('maint', this)">Maintenance Reminders</button>
+      <button class="tab-button" data-tab="weather" onclick="showTab('weather', this)">Weather Alerts</button>
+      <button class="tab-button" data-tab="emergency" onclick="showTab('emergency', this)">Emergency Info</button>
+    </div>
+
+    <div id="maint" class="leaderboard-table" style="display:none;">
+      <h3>Your Maintenance</h3>
+      <form method="POST" style="margin-bottom:1rem;">
+        <input type="hidden" name="action" value="add_maintenance">
+        <div class="form-group">
+          <label>Item</label>
+          <input name="item" placeholder="Oil change / Tire replacement" required>
+        </div>
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" name="due_date">
+        </div>
+        <div class="form-group">
+          <label>Last Changed</label>
+          <input type="date" name="last_changed">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input name="notes" placeholder="Notes (optional)">
+        </div>
+        <div class="form-group">
+          <button class="btn" type="submit">Add Reminder</button>
+        </div>
+      </form>
+
+      {% if maintenance %}
+        <table style="width:100%;">
+          <thead><tr><th>Item</th><th>Due</th><th>Last</th><th>Notes</th><th></th></tr></thead>
+          <tbody>
+            {% for m in maintenance %}
+              <tr>
+                <td>{{ m['item'] }}</td>
+                <td>{{ m['due_date'] or '-' }}</td>
+                <td>{{ m['last_changed'] or '-' }}</td>
+                <td>{{ m['notes'] or '-' }}</td>
+                <td><a class="btn btn-secondary" href="?delete_maint={{ m['id'] }}" onclick="return confirm('Delete?')">Delete</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="empty-message">No maintenance reminders yet.</p>
+      {% endif %}
+    </div>
+
+    <div id="weather" class="leaderboard-table" style="display:none;">
+      <h3>Weather Alerts</h3>
+      <form method="POST">
+        <input type="hidden" name="action" value="weather">
+        <div class="form-group">
+          <label>City</label>
+          <input name="city" placeholder="Enter city (e.g. London)" required>
+        </div>
+        <div class="form-group">
+          <button class="btn" type="submit">Get Weather</button>
+        </div>
+      </form>
+
+      {% if weather %}
+        <div class="stat-card" style="text-align:left;">
+          <h3>{{ weather.city }}</h3>
+          <p>Temp: <strong>{{ weather.temp }}°C</strong></p>
+          <p>Condition: <strong>{{ weather.desc }}</strong></p>
+          <p>Wind: <strong>{{ weather.wind }} m/s</strong></p>
+        </div>
+      {% else %}
+        <p class="empty-message">Enter city and click Get Weather. (Requires OPENWEATHER_API_KEY)</p>
+      {% endif %}
+    </div>
+
+    <div id="emergency" class="leaderboard-table" style="display:none;">
+      <h3>Emergency Info</h3>
+      <form method="POST">
+        <input type="hidden" name="action" value="emergency">
+        <div class="form-group">
+          <label>Contact Name</label>
+          <input name="em_name" value="{{ user['emergency_name'] or '' }}" placeholder="ICE Contact name">
+        </div>
+        <div class="form-group">
+          <label>Contact Phone</label>
+          <input name="em_phone" value="{{ user['emergency_phone'] or '' }}" placeholder="+1234567890">
+        </div>
+        <div class="form-group">
+          <button class="btn" type="submit">Save Emergency Info</button>
+        </div>
+      </form>
+
+      <div style="margin-top:1rem;">
+        <h4>Quick Access</h4>
+        <p>{{ user['emergency_name'] or 'No contact set' }} — {{ user['emergency_phone'] or '-' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showTab(id, btn) {
+      ['maint','weather','emergency'].forEach(k => document.getElementById(k).style.display = (k===id ? 'block' : 'none'));
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    // Ensure maintenance tab is shown by default
+    document.addEventListener('DOMContentLoaded', function () {
+      const btn = document.querySelector('.tab-button[data-tab="maint"]');
+      showTab('maint', btn);
+    });
+  </script>
+</body>
+</html>

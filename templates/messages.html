@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Messages</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .msg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .conversations-container { max-width: 1000px; margin: 0 auto; }
+    .conversation-list { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+    .conversation-item { padding: 1.5rem; border-bottom: 1px solid #e0e0e0; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 1rem; position: relative; text-decoration: none; color: inherit; }
+    .conversation-item:hover { background: #f8f9fa; }
+    .conversation-item:last-child { border-bottom: none; }
+    .conv-avatar-wrapper { position: relative; flex-shrink: 0; }
+    .conv-avatar { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #667eea; }
+    .conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .unread-badge { position: absolute; top: -8px; right: -8px; background: #f5576c; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border: 3px solid white; box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3); }
+    .conv-info { flex: 1; }
+    .conv-name { font-weight: 700; color: #333; margin: 0 0 0.25rem 0; }
+    .conv-time { color: #999; font-size: 0.85rem; margin: 0; }
+    .conv-time strong { color: #667eea; }
+    .empty-convs { text-align: center; padding: 3rem 1rem; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div class="msg-header">
+      <h2 style="margin: 0; color: #222;">💬 Messages</h2>
+      <a href="/groups/create" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700;">+ Create Group</a>
+    </div>
+
+    <div class="conversations-container">
+      {% if conversations %}
+        <div class="conversation-list" id="conversationList">
+          {% for conv in conversations %}
+            <a href="{% if conv['type'] == 'user' %}/messages/with/{{ conv['id'] }}{% else %}/groups/{{ conv['id'] }}{% endif %}" class="conversation-item">
+              <div class="conv-avatar-wrapper">
+                {% if conv['profile_pic'] %}
+                  <img src="{{ conv['profile_pic'] }}" alt="{{ conv['name'] }}" class="conv-avatar">
+                {% else %}
+                  <div class="conv-avatar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem;">{{ conv['name'][0].upper() }}</div>
+                {% endif %}
+                {% if conv['unread'] > 0 %}
+                  <div class="unread-badge">{{ conv['unread'] }}</div>
+                {% endif %}
+              </div>
+              <div class="conv-info">
+                <h4 class="conv-name">{{ conv['name'] }}</h4>
+                <p class="conv-time">
+                  {% if conv['unread'] > 0 %}
+                    <strong>{{ conv['unread'] }} unread message{{ 's' if conv['unread'] != 1 else '' }}</strong>
+                  {% else %}
+                    No unread messages
+                  {% endif %}
+                </p>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-convs">
+          <h3>No Messages Yet</h3>
+          <p>Start following users to message them or create a group!</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Refresh conversations list every 4 seconds to show updated unread counts
+    function refreshConversations() {
+      fetch('/messages')
+        .then(response => response.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const newList = doc.querySelector('#conversationList');
+          const oldList = document.querySelector('#conversationList');
+          if (newList && oldList) {
+            oldList.innerHTML = newList.innerHTML;
+          }
+        })
+        .catch(error => console.error('Refresh error:', error));
+    }
+
+    setInterval(refreshConversations, 4000);
+  </script>
+</body>
+</html>

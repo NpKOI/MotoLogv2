@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Edit Profile</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .edit-container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .edit-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div class="edit-container">
+      <div class="edit-card">
+        <h2>✏️ Edit Your Profile</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages" style="margin-top: 1rem;">
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" style="margin-top: 2rem;">
+          <div style="display: flex; gap: 2rem; align-items: flex-start;">
+            <!-- Profile Picture Section -->
+            <div style="min-width: 160px;">
+              {% if user['profile_pic'] %}
+                <img src="{{ user['profile_pic'] }}" alt="Profile" style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #667eea;"/>
+              {% else %}
+                <div style="width: 150px; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; border-radius: 8px; color: white; font-weight: bold; font-size: 3rem;">{{ user['username'][0].upper() }}</div>
+              {% endif %}
+              <div style="margin-top: 1rem;">
+                <label class="upload-btn">
+                  <span class="icon">📷</span>
+                  <span>Upload Photo</span>
+                  <input class="hidden-file-input" type="file" name="profile_pic" accept="image/*" onchange="updatePreview(this, 'profilePreview')">
+                </label>
+                <span id="profilePreview" class="file-preview"></span>
+              </div>
+            </div>
+
+            <!-- Form Fields -->
+            <div style="flex: 1;">
+              <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" value="{{ user['username'] }}" required>
+              </div>
+
+              <div class="form-group">
+                <label for="bio">Bio</label>
+                <textarea id="bio" name="bio" rows="4" placeholder="Tell us about yourself...">{{ user['bio'] or '' }}</textarea>
+              </div>
+
+              <div style="margin-top: 1rem; color: #666; font-size: 0.95rem;">
+                📍 <strong>Country:</strong> {{ user['country'] }}
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="/profile" class="btn" style="background: #666; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px;">← Back</a>
+            <button type="submit" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 8px;">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updatePreview(input, targetId) {
+      const label = document.getElementById(targetId);
+      if (!input.files || !input.files.length) { label.textContent = ''; return; }
+      label.textContent = input.files[0].name;
+    }
+  </script>
+</body>
+</html>

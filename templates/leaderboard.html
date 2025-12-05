@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Leaderboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .leaderboard-user {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .leaderboard-user:hover {
+      color: #667eea;
+    }
+
+    .leaderboard-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      flex-shrink: 0;
+    }
+
+    .leaderboard-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .leaderboard-username {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .leaderboard-user:hover .leaderboard-username {
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="leaderboard-container">
+    {% include '_navbar.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <h2 style="color: #222; margin-bottom: 1rem;">🏆 Leaderboards</h2>
+
+    <div class="leaderboard-tabs">
+      <button class="tab-button" data-tab="global" onclick="showTab('global', this)">Global 🌍</button>
+      <button class="tab-button" data-tab="local" onclick="showTab('local', this)">Local 📍 ({{ user_country }})</button>
+    </div>
+
+    <div id="global" class="leaderboard-table" style="display:none;">
+      <h3>Global Leaderboard</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>User</th>
+            <th>Country</th>
+            <th>Total Distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in global_leaderboard %}
+            <tr>
+              <td>
+                <span class="rank">
+                  {% if loop.index == 1 %}<span class="medal gold">🥇</span>{% elif loop.index == 2 %}<span class="medal silver">🥈</span>{% elif loop.index == 3 %}<span class="medal bronze">🥉</span>{% endif %}
+                  #{{ loop.index }}
+                </span>
+              </td>
+              <td>
+                <a href="/user/{{ user['id'] }}" style="text-decoration:none; color:inherit;">
+                  <div class="leaderboard-user">
+                    <div class="leaderboard-avatar">
+                      {% if user['profile_pic'] %}
+                        <img src="{{ user['profile_pic'] }}" alt="{{ user['username'] }}">
+                      {% else %}
+                        <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:1.2rem;">{{ user['username'][0].upper() }}</div>
+                      {% endif %}
+                    </div>
+                    <span class="leaderboard-username">{{ user['username'] }}</span>
+                  </div>
+                </a>
+              </td>
+              <td>{{ user['country'] }}</td>
+              <td><strong>{{ user['total_distance']|default(0) }} km</strong></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" style="color:#666; padding:1rem;">No data yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="local" class="leaderboard-table" style="display:none;">
+      <h3>Local Leaderboard - {{ user_country }}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>User</th>
+            <th>Country</th>
+            <th>Total Distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in local_leaderboard %}
+            <tr>
+              <td>
+                <span class="rank">
+                  {% if loop.index == 1 %}<span class="medal gold">🥇</span>{% elif loop.index == 2 %}<span class="medal silver">🥈</span>{% elif loop.index == 3 %}<span class="medal bronze">🥉</span>{% endif %}
+                  #{{ loop.index }}
+                </span>
+              </td>
+              <td>
+                <a href="/user/{{ user['id'] }}" style="text-decoration:none; color:inherit;">
+                  <div class="leaderboard-user">
+                    <div class="leaderboard-avatar">
+                      {% if user['profile_pic'] %}
+                        <img src="{{ user['profile_pic'] }}" alt="{{ user['username'] }}">
+                      {% else %}
+                        <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:1.2rem;">{{ user['username'][0].upper() }}</div>
+                      {% endif %}
+                    </div>
+                    <span class="leaderboard-username">{{ user['username'] }}</span>
+                  </div>
+                </a>
+              </td>
+              <td>{{ user['country'] }}</td>
+              <td><strong>{{ user['total_distance']|default(0) }} km</strong></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" style="color:#666; padding:1rem;">No local users yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function showTab(tab, btn) {
+      document.getElementById('global').style.display = tab === 'global' ? 'block' : 'none';
+      document.getElementById('local').style.display = tab === 'local' ? 'block' : 'none';
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    // Ensure global tab is shown by default
+    document.addEventListener('DOMContentLoaded', function () {
+      const btn = document.querySelector('.tab-button[data-tab="global"]');
+      showTab('global', btn);
+    });
+  </script>
+</body>
+</html>

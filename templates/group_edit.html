@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Edit {{ group['name'] }} - MotoLog</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .edit-container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .edit-card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .section-title { font-size: 1.2rem; font-weight: 700; color: #333; margin: 2rem 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 2px solid #667eea; }
+    .members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .member-chip { background: linear-gradient(135deg, #f5f7fa 0%, #f0f2f5 100%); padding: 1rem; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; border: 2px solid #e0e0e0; transition: all 0.3s ease; }
+    .member-chip:hover { box-shadow: 0 4px 12px rgba(102,126,234,0.1); }
+    .member-avatar { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #667eea; }
+    .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .member-name { font-weight: 700; font-size: 0.9rem; text-align: center; }
+    .member-owner { color: #667eea; font-size: 0.75rem; font-weight: 700; }
+    .remove-btn { background: #f5576c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
+    .remove-btn:hover { background: #e63854; }
+    .add-members { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .user-checkbox { background: white; padding: 1rem; border-radius: 10px; border: 2px solid #e0e0e0; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; transition: all 0.3s ease; }
+    .user-checkbox:hover { border-color: #667eea; background: #f8f9fa; }
+    .user-checkbox input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+    .user-checkbox-label { flex: 1; font-weight: 700; }
+    .pic-section { display: flex; gap: 2rem; align-items: flex-start; margin-bottom: 2rem; }
+    .pic-preview { width: 150px; height: 150px; border-radius: 12px; overflow: hidden; border: 3px solid #667eea; box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
+    .pic-preview img { width: 100%; height: 100%; object-fit: cover; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    
+    <div class="edit-container">
+      <div class="edit-card">
+        <h2 style="margin: 0 0 1rem 0;">✏️ Edit Group</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages" style="margin: 1rem 0;">
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data">
+          <!-- Group Name & Picture -->
+          <div class="pic-section">
+            <div>
+              <div class="pic-preview">
+                {% if group['profile_pic'] %}
+                  <img src="{{ group['profile_pic'] }}" alt="{{ group['name'] }}">
+                {% else %}
+                  <div style="width:100%; height:100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 2rem;">{{ group['name'][0].upper() }}</div>
+                {% endif %}
+              </div>
+              <label class="upload-btn" style="margin-top: 1rem; display: inline-block;">
+                <span class="icon">📸</span>
+                <span>Change Photo</span>
+                <input class="hidden-file-input" type="file" name="group_pic" accept="image/*" onchange="updatePreview(this, 'picPreview')">
+              </label>
+              <span id="picPreview" class="file-preview" style="display: block; margin-top: 0.5rem; font-size: 0.9rem; color: #667eea;"></span>
+            </div>
+
+            <div style="flex: 1;">
+              <div class="form-group">
+                <label for="name">Group Name</label>
+                <input type="text" id="name" name="name" value="{{ group['name'] }}" required style="font-size: 1.1rem;">
+              </div>
+              <div style="color: #999; font-size: 0.9rem; margin-top: 1rem;">
+                👤 <strong>Owner:</strong> {{ owner['username'] }}{% if owner and owner['id'] == session.get('user_id') %} (You){% endif %}
+              </div>
+              <div style="color: #999; font-size: 0.9rem; margin-top: 0.5rem;">
+                👥 <strong>Members:</strong> {{ members|length }}
+              </div>
+            </div>
+          </div>
+
+          <hr style="margin: 2rem 0; border: none; border-top: 2px solid #e0e0e0;">
+
+          <!-- Current Members -->
+          <h3 class="section-title">👥 Current Members ({{ members|length }})</h3>
+          <div class="members-grid">
+            {% for m in members %}
+              <div class="member-chip">
+                <div class="member-avatar">
+                  {% if m['profile_pic'] %}
+                    <img src="{{ m['profile_pic'] }}">
+                  {% else %}
+                    <div style="width:100%; height:100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">{{ m['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div class="member-name">{{ m['username'] }}</div>
+                {% if m['id'] != group['owner_id'] and session.get('user_id') == group['owner_id'] %}
+                  <button type="submit" name="remove_member" value="{{ m['id'] }}" class="remove-btn" style="width: 100%;">Remove ✕</button>
+                {% elif m['id'] == group['owner_id'] %}
+                  <div class="member-owner">Owner</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <hr style="margin: 2rem 0; border: none; border-top: 2px solid #e0e0e0;">
+
+          <!-- Add Friends Only -->
+          <h3 class="section-title">➕ Add Friends</h3>
+          {% if add_available_friends %}
+            <div class="add-members">
+              {% for u in add_available_friends %}
+                <label class="user-checkbox">
+                  <input type="checkbox" name="add_members" value="{{ u['id'] }}">
+                  <div style="flex: 1;">
+                    <div class="user-checkbox-label">{{ u['username'] }}</div>
+                  </div>
+                </label>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div style="color: #999; padding: 2rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+              No additional friends to add to this group.
+            </div>
+          {% endif %}
+
+          <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="/groups/{{ group['id'] }}" class="btn" style="background: #666; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px;">← Back</a>
+            <button type="submit" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 8px;">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updatePreview(input, targetId) {
+      const label = document.getElementById(targetId);
+      if (!input.files || !input.files.length) { label.textContent = ''; return; }
+      label.textContent = '✓ ' + input.files[0].name;
+    }
+  </script>
+</body>
+</html>

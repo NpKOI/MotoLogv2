@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - {{ user['username'] }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .profile-header {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .profile-info {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    .profile-avatar-large {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 4px solid #667eea;
+      box-shadow: 0 8px 24px rgba(102,126,234,0.2);
+    }
+
+    .profile-avatar-large img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-details {
+      flex: 1;
+    }
+
+    .profile-username {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .profile-stats {
+      display: flex;
+      gap: 2rem;
+      margin: 1.5rem 0;
+    }
+
+    .stat {
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .stat:hover {
+      transform: scale(1.05);
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    .profile-bio {
+      color: #555;
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .follow-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .follow-btn.unfollow {
+      background: #f5576c;
+    }
+
+    .follow-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102,126,234,0.3);
+    }
+
+    .message-btn {
+      background: #28a745;
+      color: white;
+    }
+
+    .message-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(40,167,69,0.3);
+    }
+
+    .garage-btn {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .garage-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255,193,7,0.3);
+    }
+
+    .profile-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .profile-section h3 {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .profile-section h3:hover {
+      color: #667eea;
+    }
+
+    .collapse-icon {
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+
+    .collapse-icon.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    .user-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 1rem;
+    }
+
+    .user-card {
+      text-align: center;
+      padding: 1rem;
+      border-radius: 10px;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+      background: #f0f2f5;
+      transform: translateY(-2px);
+    }
+
+    .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 0 auto 0.5rem;
+      border: 2px solid #667eea;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-name {
+      font-weight: 700;
+      color: #333;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 2rem;
+    }
+
+    .collapsible-content {
+      display: none;
+    }
+
+    .collapsible-content.open {
+      display: block;
+    }
+
+    /* Ride card with comments */
+    .ride-card-public {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 10px;
+      border-left: 4px solid #667eea;
+      margin-bottom: 1.5rem;
+    }
+
+    .ride-date-public {
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 0.25rem;
+    }
+
+    .ride-details-public {
+      color: #666;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .ride-description {
+      color: #555;
+      margin: 0.75rem 0;
+      line-height: 1.5;
+    }
+
+    .comments-section {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .comments-title {
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .comment {
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 0.75rem;
+      border-left: 2px solid #667eea;
+    }
+
+    .comment-author {
+      font-weight: 700;
+      color: #667eea;
+      font-size: 0.9rem;
+    }
+
+    .comment-text {
+      color: #555;
+      margin-top: 0.25rem;
+      font-size: 0.95rem;
+    }
+
+    .comment-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .comment-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    .comment-submit {
+      padding: 8px 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+
+    .comment-submit:hover {
+      background: #764ba2;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <!-- Profile Header - simplified -->
+    <div class="profile-header">
+      <div class="profile-info">
+        <div class="profile-avatar-large">
+          {% if user['profile_pic'] %}
+            <a href="/user/{{ user['id'] }}" style="display:block;"><img src="{{ user['profile_pic'] }}" alt="{{ user['username'] }}"></a>
+          {% else %}
+            <a href="/user/{{ user['id'] }}" style="display:flex; width:100%; height:100%; align-items:center; justify-content:center; color:white; text-decoration:none; font-size:3rem; font-weight:bold;">
+              <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white;">{{ user['username'][0].upper() }}</div>
+            </a>
+          {% endif %}
+        </div>
+
+        <div class="profile-details">
+          <div class="profile-username">{{ user['username'] }}</div>
+
+          <div class="profile-stats">
+            <a href="/user/{{ user['id'] }}" style="text-decoration:none; color:inherit;">
+              <div class="stat">
+                <div class="stat-value">{{ total_rides }}</div>
+                <div class="stat-label">Public Rides</div>
+              </div>
+            </a>
+
+            <a href="/user/{{ user['id'] }}/followers" style="text-decoration:none; color:inherit;">
+              <div class="stat">
+                <div class="stat-value">{{ followers|length }}</div>
+                <div class="stat-label">Followers</div>
+              </div>
+            </a>
+
+            <a href="/user/{{ user['id'] }}/following" style="text-decoration:none; color:inherit;">
+              <div class="stat">
+                <div class="stat-value">{{ following|length }}</div>
+                <div class="stat-label">Following</div>
+              </div>
+            </a>
+          </div>
+
+          {% if user['bio'] %}
+            <div class="profile-bio">{{ user['bio'] }}</div>
+          {% endif %}
+
+          <div style="margin-top:1rem; color:#666; font-size:0.95rem;">
+            📍 {{ user['country'] }}
+          </div>
+
+          <div class="action-buttons">
+            {% if session.get('user_id') and session['user_id'] != user['id'] %}
+              <form method="POST" action="/follow/{{ user['id'] }}" style="display:inline;">
+                <button class="action-btn follow-btn {% if is_following %}unfollow{% endif %}" type="submit">
+                  {{ '✓ Following' if is_following else '+ Follow' }}
+                </button>
+              </form>
+              <a href="/messages/with/{{ user['id'] }}" class="action-btn message-btn">💬 Message</a>
+            {% endif %}
+            <a href="/user/{{ user['id'] }}/garage" class="action-btn garage-btn">🏍️ Garage</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Public Rides with Comments (unchanged) -->
+    <div class="profile-section">
+      <h3>
+        🏍️ Recent Public Rides ({{ rides|length }})
+      </h3>
+      <div>
+        {% if rides %}
+          {% for ride in rides %}
+            <div class="ride-card-public">
+              <div class="ride-date-public">📅 {{ ride['date'] }}</div>
+              <div class="ride-details-public">🛣️ {{ ride['distance'] }} km • ⏱️ {{ ride['time'] }} hrs</div>
+              {% if ride['description'] %}
+                <div class="ride-description">{{ ride['description'] }}</div>
+              {% endif %}
+
+              <div class="comments-section">
+                <div class="comments-title">💬 Comments</div>
+
+                {% set ride_comments = query_db('SELECT c.*, u.username, u.profile_pic FROM comments c JOIN users u ON c.user_id = u.id WHERE c.ride_id = ? ORDER BY c.created_at DESC', (ride['id'],)) %}
+                {% if ride_comments %}
+                  {% for comment in ride_comments %}
+                    <div class="comment">
+                      <div class="comment-author">{{ comment['username'] }}</div>
+                      <div class="comment-text">{{ comment['content'] }}</div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div style="color:#999; font-size:0.9rem;">No comments yet. Be the first to comment!</div>
+                {% endif %}
+
+                {% if session.get('user_id') %}
+                  <form method="POST" action="/ride/{{ ride['id'] }}/comment" class="comment-form">
+                    <input type="text" name="comment" class="comment-input" placeholder="Share your thoughts..." required>
+                    <button type="submit" class="comment-submit">Post</button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">No public rides yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

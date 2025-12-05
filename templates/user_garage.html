@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ user['username'] }}'s Garage - MotoLog</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .garage-header {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .garage-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #333;
+    }
+
+    .bike-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .bike-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+
+    .bike-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(102,126,234,0.2);
+    }
+
+    .bike-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: #f0f2f5;
+    }
+
+    .bike-info {
+      padding: 1.5rem;
+    }
+
+    .bike-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .bike-model {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .bike-stats {
+      display: flex;
+      gap: 1rem;
+      margin: 0.75rem 0;
+    }
+
+    .bike-stat {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .bike-stat strong {
+      color: #667eea;
+    }
+
+    .bike-notes {
+      color: #666;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .empty-garage {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #999;
+    }
+
+    .empty-garage-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div class="garage-header">
+      <div>
+        <h1 class="garage-title">🏍️ {{ user['username'] }}'s Garage</h1>
+        <p style="color:#666; margin-top:0.5rem;">{{ bikes|length }} bike{{ 's' if bikes|length != 1 else '' }}</p>
+      </div>
+    </div>
+
+    {% if bikes %}
+      <div class="bike-grid">
+        {% for bike in bikes %}
+          <div class="bike-card">
+            <div style="background: #f0f2f5; height: 200px; overflow: hidden;">
+              {% if bike['image'] %}
+                <img src="{{ bike['image'] }}" alt="{{ bike['name'] }}" class="bike-image">
+              {% else %}
+                <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#999; font-size:3rem;">🏍️</div>
+              {% endif %}
+            </div>
+
+            <div class="bike-info">
+              <div class="bike-name">{{ bike['name'] }}</div>
+              {% if bike['make_model'] %}
+                <div class="bike-model">{{ bike['make_model'] }}</div>
+              {% endif %}
+
+              <div class="bike-stats">
+                {% if bike['year'] %}
+                  <div class="bike-stat">📅 <strong>{{ bike['year'] }}</strong></div>
+                {% endif %}
+                <div class="bike-stat">🛣️ <strong>{{ bike['odo'] or 0 }} km</strong></div>
+              </div>
+
+              {% if bike['notes'] %}
+                <div class="bike-notes">{{ bike['notes'] }}</div>
+              {% endif %}
+
+              <div style="margin-top: 1rem;">
+                <a href="/bike/{{ bike['id'] }}/maintenance" class="btn" style="display: inline-block; padding: 8px 12px; font-size: 0.9rem;">View Maintenance</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-garage">
+        <div class="empty-garage-icon">🏍️</div>
+        <h3>No Public Bikes</h3>
+        <p>This user hasn't shared any bikes yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

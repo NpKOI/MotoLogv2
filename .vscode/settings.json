@@ -1,0 +1,9 @@
+{
+  "html.validate.scripts": false,
+  "html.validate.styles": false,
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "emmet.excludeLanguages": ["jinja", "jinja2"],
+  "telemetry.telemetryLevel": "off"
+}

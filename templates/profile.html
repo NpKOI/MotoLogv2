@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Profile</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .profile-header {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .profile-info {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    .profile-avatar-large {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 4px solid #667eea;
+      box-shadow: 0 8px 24px rgba(102,126,234,0.2);
+    }
+
+    .profile-avatar-large img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-details {
+      flex: 1;
+    }
+
+    .profile-username {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .profile-stats {
+      display: flex;
+      gap: 2rem;
+      margin: 1.5rem 0;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    .profile-bio {
+      color: #555;
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+
+    .profile-section {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .profile-section h3 {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 0.75rem;
+    }
+
+    .user-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 1rem;
+    }
+
+    .user-card {
+      text-align: center;
+      padding: 1rem;
+      border-radius: 10px;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+      background: #f0f2f5;
+      transform: translateY(-2px);
+    }
+
+    .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 0 auto 0.5rem;
+      border: 2px solid #667eea;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-name {
+      font-weight: 700;
+      color: #333;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .edit-profile-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+
+    .edit-profile-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102,126,234,0.3);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #999;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="profile-info">
+        <div class="profile-avatar-large">
+          {% if user['profile_pic'] %}
+            <img src="{{ user['profile_pic'] }}" alt="{{ user['username'] }}">
+          {% else %}
+            <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white; font-size:3rem; font-weight:bold;">{{ user['username'][0].upper() }}</div>
+          {% endif %}
+        </div>
+
+        <div class="profile-details">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div class="profile-username">{{ user['username'] }}</div>
+            <a href="/profile/edit" class="edit-profile-btn" style="background: #667eea; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; border: none; cursor: pointer; font-weight: 700;">✏️ Edit Profile</a>
+          </div>
+
+          <div class="profile-stats">
+            <div class="stat">
+              <div class="stat-value">{{ total_rides }}</div>
+              <div class="stat-label">Rides</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">{{ "%.0f"|format(total_distance) }}</div>
+              <div class="stat-label">km Total</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">{{ followers|length }}</div>
+              <div class="stat-label">Followers</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">{{ following|length }}</div>
+              <div class="stat-label">Following</div>
+            </div>
+          </div>
+
+          {% if user['bio'] %}
+            <div class="profile-bio">{{ user['bio'] }}</div>
+          {% endif %}
+
+          <div style="margin-top:1rem; color:#666; font-size:0.95rem;">
+            📍 {{ user['country'] }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal/Section (hidden by default) -->
+    <div id="editModal" style="display:none;">
+      <div class="profile-section">
+        <h3>Edit Your Profile</h3>
+        <form method="POST" enctype="multipart/form-data">
+          <div style="display:flex; gap:2rem; align-items:flex-start;">
+            <div style="min-width:160px;">
+              {% if user['profile_pic'] %}
+                <img src="{{ user['profile_pic'] }}" alt="Profile" style="width:150px; height:150px; object-fit:cover; border-radius:8px;"/>
+              {% else %}
+                <div style="width:150px; height:150px; background:#f0f2f5; display:flex; align-items:center; justify-content:center; border-radius:8px; color:#999;">No photo</div>
+              {% endif %}
+              <div style="margin-top:0.5rem;">
+                <label class="upload-btn">
+                  <span class="icon">📷</span>
+                  <span>Upload Photo</span>
+                  <input class="hidden-file-input" type="file" name="profile_pic" accept="image/*" onchange="updatePreview(this, 'profilePreview')">
+                </label>
+                <span id="profilePreview" class="file-preview"></span>
+              </div>
+            </div>
+
+            <div style="flex:1;">
+              <div class="form-group">
+                <label>Username</label>
+                <input value="{{ user['username'] }}" name="username">
+              </div>
+              <div class="form-group">
+                <label>Bio</label>
+                <textarea name="bio" rows="4">{{ user['bio'] or '' }}</textarea>
+              </div>
+              <div style="display:flex; gap:1rem;">
+                <button class="btn" type="submit">Save Profile</button>
+                <button class="btn btn-secondary" type="button" onclick="toggleEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Followers Section -->
+    <div class="profile-section">
+      <h3>👥 Followers ({{ followers|length }})</h3>
+      {% if followers %}
+        <div class="user-grid">
+          {% for f in followers %}
+            <a href="/user/{{ f['id'] }}" style="text-decoration:none; color:inherit;">
+              <div class="user-card">
+                <div class="user-avatar">
+                  {% if f['profile_pic'] %}
+                    <img src="{{ f['profile_pic'] }}" alt="{{ f['username'] }}">
+                  {% else %}
+                    <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">{{ f['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div class="user-name">{{ f['username'] }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">No followers yet. Share your rides to get followers!</div>
+      {% endif %}
+    </div>
+
+    <!-- Following Section -->
+    <div class="profile-section">
+      <h3>🔗 Following ({{ following|length }})</h3>
+      {% if following %}
+        <div class="user-grid">
+          {% for u in following %}
+            <a href="/user/{{ u['id'] }}" style="text-decoration:none; color:inherit;">
+              <div class="user-card">
+                <div class="user-avatar">
+                  {% if u['profile_pic'] %}
+                    <img src="{{ u['profile_pic'] }}" alt="{{ u['username'] }}">
+                  {% else %}
+                    <div style="width:100%; height:100%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">{{ u['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div class="user-name">{{ u['username'] }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">You're not following anyone yet. Explore riders on the leaderboard!</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function toggleEdit() {
+      const modal = document.getElementById('editModal');
+      modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function updatePreview(input, targetId) {
+      const label = document.getElementById(targetId);
+      if (!input.files || !input.files.length) { label.textContent = ''; return; }
+      label.textContent = input.files[0].name;
+    }
+  </script>
+</body>
+</html>

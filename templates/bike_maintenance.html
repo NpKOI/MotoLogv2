@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ bike['name'] }} - Maintenance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .maint-card { background:white; padding:1rem; border-radius:8px; margin-bottom:1rem; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+    .maint-form { display:flex; gap:0.5rem; margin-bottom:1rem; }
+    .maint-form input, .maint-form textarea { padding:8px; border:1px solid #e0e0e0; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    <div style="margin-bottom:1rem;">
+      <a href="/user/{{ owner['id'] }}">← Back to {{ owner['username'] }}'s profile</a>
+    </div>
+
+    <h2>{{ bike['name'] }} — Maintenance</h2>
+
+    {% if session.get('user_id') and session['user_id'] == bike['user_id'] %}
+      <form method="POST" class="maint-form">
+        <input type="text" name="item" placeholder="Maintenance item (e.g., Oil change)" required>
+        <input type="date" name="date">
+        <input type="text" name="notes" placeholder="Notes">
+        <button type="submit" name="add_maintenance" class="btn">Add</button>
+      </form>
+    {% endif %}
+
+    {% if entries %}
+      {% for e in entries %}
+        <div class="maint-card">
+          <div style="font-weight:700; display:flex; justify-content:space-between; align-items:center;">
+            <div>{{ e['item'] }}</div>
+            {% if session.get('user_id') and session['user_id'] == bike['user_id'] %}
+              <form method="POST" style="margin:0;">
+                <input type="hidden" name="entry_id" value="{{ e['id'] }}">
+                <button type="submit" name="delete_entry" class="btn" style="background:#f5576c; color:white;">Remove</button>
+              </form>
+            {% endif %}
+          </div>
+          <div style="color:#666; margin-top:0.25rem;">Date: {{ e['date'] or '—' }}</div>
+          {% if e['notes'] %}
+            <div style="margin-top:0.5rem;">{{ e['notes'] }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">No maintenance records yet.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

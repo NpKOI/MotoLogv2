@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ user['username'] }} - Connections</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    /* small style overrides - adapt to your main CSS */
+    .tabs { display:flex; gap:1rem; margin-bottom:1rem; }
+    .tab { padding: 8px 12px; border-radius:8px; text-decoration:none; color:inherit; font-weight:700; }
+    .tab.active { background: linear-gradient(135deg,#667eea,#764ba2); color:white; }
+    .user-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:1rem; }
+    .user-card{ background:white; border-radius:8px; padding:1rem; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+    .user-avatar{ width:80px; height:80px; border-radius:50%; overflow:hidden; margin:0 auto 0.5rem; border:2px solid #667eea;}
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <h2 style="margin-bottom:1rem;">{{ user['username'] }}</h2>
+
+    <div class="tabs">
+      <a class="tab {% if active_tab=='profile' %}active{% endif %}" href="/user/{{ user['id'] }}">Profile</a>
+      <a class="tab {% if active_tab=='followers' %}active{% endif %}" href="/user/{{ user['id'] }}/followers">Followers ({{ followers|length }})</a>
+      <a class="tab {% if active_tab=='following' %}active{% endif %}" href="/user/{{ user['id'] }}/following">Following ({{ following|length }})</a>
+    </div>
+
+    {% if active_tab == 'followers' %}
+      <div class="user-grid">
+        {% if followers %}
+          {% for f in followers %}
+            <a href="/user/{{ f['id'] }}" style="text-decoration:none; color:inherit;">
+              <div class="user-card">
+                <div class="user-avatar">
+                  {% if f['profile_pic'] %}
+                    <img src="{{ f['profile_pic'] }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold;">{{ f['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div style="font-weight:700;">{{ f['username'] }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">No followers yet.</div>
+        {% endif %}
+      </div>
+
+    {% elif active_tab == 'following' %}
+      <div class="user-grid">
+        {% if following %}
+          {% for f in following %}
+            <a href="/user/{{ f['id'] }}" style="text-decoration:none; color:inherit;">
+              <div class="user-card">
+                <div class="user-avatar">
+                  {% if f['profile_pic'] %}
+                    <img src="{{ f['profile_pic'] }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold;">{{ f['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div style="font-weight:700;">{{ f['username'] }}</div>
+              </div>
+            </a>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">Not following anyone yet.</div>
+        {% endif %}
+      </div>
+
+    {% else %}
+      <!-- Should not reach here when called from our followers/following routes -->
+      <div class="empty-state">Select a tab above.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

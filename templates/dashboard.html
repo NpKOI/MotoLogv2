@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MotoLog - Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="stats-container">
+      <div class="stat-card">
+        <h3>Total Rides</h3>
+        <div class="value">{{ total_rides }}</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Distance</h3>
+        <div class="value">{{ "%.1f"|format(total_distance) }} km</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Time</h3>
+        <div class="value">{{ "%.1f"|format(total_time) }} hrs</div>
+      </div>
+      <div class="stat-card">
+        <h3>Avg Distance</h3>
+        <div class="value">{{ "%.1f"|format(avg_distance) }} km</div>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <a href="/add-ride" class="btn">+ Add New Ride</a>
+      <a href="/leaderboard" class="btn btn-secondary">🏆 Leaderboard</a>
+      <a href="/tools" class="btn btn-secondary">🧰 Tools</a>
+    </div>
+
+    <div class="rides-container">
+      <h3>Your Rides</h3>
+      {% if rides %}
+        {% for ride in rides %}
+          <div class="ride-card">
+            <div class="ride-info">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+                <div>
+                  <div class="ride-date">📅 {{ ride['date'] }}</div>
+                  <div class="ride-details">🛣️ Distance: <strong>{{ ride['distance'] }} km</strong></div>
+                  <div class="ride-details">⏱️ Time: <strong>{{ ride['time'] }} hours</strong></div>
+                </div>
+                <div style="text-align:right;">
+                  {% if ride['is_private'] %}
+                    <div style="background:#f8d7da; color:#721c24; padding:6px 10px; border-radius:8px; font-weight:700;">Private</div>
+                  {% else %}
+                    <div style="background:#e6fffa; color:#065f46; padding:6px 10px; border-radius:8px; font-weight:700;">Public</div>
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if ride['tags'] %}
+                {% set emojis = {
+                  'sunny':'☀️','rain':'🌧️','cloudy':'☁️','cold':'❄️',
+                  'gravel':'🪨','offroad':'🏜️','highway':'🛣️','city':'🏙️',
+                  'commute':'🚗','tour':'🗺️','sport':'⚡','leisure':'😎'
+                } %}
+                <div style="margin-top:0.75rem;">
+                  {% for tag in (ride['tags'] or '').split(',') %}
+                    {% set t = tag.strip() %}
+                    <span class="tag-chip">
+                      <span class="emoji">{{ emojis.get(t, '🏷️') }}</span>
+                      {{ t }}
+                    </span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="ride-details" style="margin-top:0.75rem;">📝 {{ ride['description'] or 'No description' }}</div>
+
+              <div class="ride-meta">
+                <form method="POST" action="/ride/{{ ride['id'] }}/like" style="display:inline;">
+                  <button type="submit" class="like-btn">👍 Like
+                    <span class="count-badge">{{ query_db('SELECT COUNT(*) as c FROM likes WHERE ride_id=?', (ride['id'],), one=True)['c'] }}</span>
+                  </button>
+                </form>
+
+                <form method="POST" action="/ride/{{ ride['id'] }}/comment" style="display:inline;">
+                  <input name="comment" placeholder="Add comment..." style="padding:6px 10px; border-radius:8px; border:1px solid #e0e0e0;">
+                  <button type="submit" class="comment-btn">Comment
+                    <span class="count-badge">{{ query_db('SELECT COUNT(*) as c FROM comments WHERE ride_id=?', (ride['id'],), one=True)['c'] }}</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div class="ride-actions">
+              <a href="/edit-ride/{{ ride['id'] }}" class="edit-btn">Edit</a>
+              <a href="/delete-ride/{{ ride['id'] }}" class="delete-btn" onclick="return confirm('Delete this ride?')">Delete</a>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty-message">No rides yet. <a href="/add-ride" style="color: #667eea;">Add your first ride!</a></p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

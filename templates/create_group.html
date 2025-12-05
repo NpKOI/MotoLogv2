@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Create Group - MotoLog</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .create-container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .create-card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .pic-preview { width: 120px; height: 120px; border-radius: 12px; border: 3px dashed #667eea; display: flex; align-items: center; justify-content: center; color: #667eea; font-size: 3rem; margin-bottom: 1rem; }
+    .friends-section { margin: 2rem 0; }
+    .section-title { font-size: 1.2rem; font-weight: 700; color: #333; margin: 2rem 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 2px solid #667eea; }
+    .friends-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+    .friend-card { background: white; border: 2px solid #e0e0e0; padding: 1rem; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; text-align: center; }
+    .friend-card:hover { border-color: #667eea; box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
+    .friend-card input[type="checkbox"] { width: 18px; height: 18px; margin-bottom: 0.5rem; cursor: pointer; }
+    .friend-avatar { width: 70px; height: 70px; border-radius: 50%; overflow: hidden; margin: 0 auto 0.5rem; border: 2px solid #667eea; }
+    .friend-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .friend-name { font-weight: 700; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    
+    <div class="create-container">
+      <div class="create-card">
+        <h2 style="margin: 0 0 1rem 0;">🎉 Create New Group</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages">
+              {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data">
+          <!-- Group Name -->
+          <div class="form-group">
+            <label for="name">Group Name</label>
+            <input type="text" id="name" name="name" placeholder="e.g., Weekend Riders" required style="font-size: 1.1rem;">
+          </div>
+
+          <!-- Group Picture -->
+          <div>
+            <label for="group_pic" style="display: block; margin-bottom: 0.5rem; font-weight: 700;">Group Picture (Optional)</label>
+            <label for="group_pic" class="upload-btn" style="display: inline-block;">
+              <span class="icon">🖼️</span>
+              <span>Upload Photo</span>
+              <input class="hidden-file-input" type="file" id="group_pic" name="group_pic" accept="image/*" onchange="updatePicPreview(this)">
+            </label>
+            <span id="picPreview" style="display: block; margin-top: 0.5rem; font-size: 0.9rem; color: #667eea;"></span>
+          </div>
+
+          <hr style="margin: 2rem 0; border: none; border-top: 2px solid #e0e0e0;">
+
+          <!-- Friends Selection -->
+          <h3 class="section-title">👥 Add Friends</h3>
+          <div class="friends-grid">
+            {% for u in users %}
+              <label class="friend-card">
+                <input type="checkbox" name="members" value="{{ u['id'] }}">
+                <div class="friend-avatar">
+                  {% if u['profile_pic'] %}
+                    <img src="{{ u['profile_pic'] }}" alt="{{ u['username'] }}">
+                  {% else %}
+                    <div style="width:100%; height:100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">{{ u['username'][0].upper() }}</div>
+                  {% endif %}
+                </div>
+                <div class="friend-name">{{ u['username'] }}</div>
+              </label>
+            {% endfor %}
+          </div>
+
+          {% if not users %}
+            <div style="color: #999; padding: 2rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
+              No friends available. Follow users to create groups with them!
+            </div>
+          {% endif %}
+
+          <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="/messages" class="btn" style="background: #666; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px;">← Back</a>
+            <button type="submit" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 8px;">Create Group</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updatePicPreview(input) {
+      const label = document.getElementById('picPreview');
+      if (!input.files || !input.files.length) { label.textContent = ''; return; }
+      label.textContent = '✓ ' + input.files[0].name;
+    }
+  </script>
+</body>
+</html>

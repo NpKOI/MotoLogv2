@@ -1,0 +1,70 @@
+<nav class="navbar">
+  <div class="brand">🏍️ MotoLog</div>
+  <div class="navbar-links">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/tools">Tools</a>
+    <a href="/messages" id="messagesLink" style="position: relative;">
+      💬 Messages
+    </a>
+    
+    {% if session.get('user_id') %}
+      {% set u = query_db('SELECT profile_pic, username FROM users WHERE id = ?', (session['user_id'],), one=True) %}
+      <div class="profile" style="margin-left: auto;">
+        <div class="profile-avatar" id="profileBtn" title="Account">
+          {% if u and u['profile_pic'] %}
+            <img src="{{ u['profile_pic'] }}" alt="Profile">
+          {% else %}
+            <div style="width:100%; height:100%; background:#667eea; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">{{ u['username'][0].upper() if u else 'U' }}</div>
+          {% endif %}
+        </div>
+        <div class="profile-menu" id="profileMenu">
+          <a href="/profile">Profile</a>
+          <a href="/bikes">My Garage</a>
+          <a href="/add-bike">Add Bike</a>
+          <a href="/logout">Logout</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</nav>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const btn = document.getElementById('profileBtn');
+    const menu = document.getElementById('profileMenu');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    });
+    document.addEventListener('click', function(){ menu.classList.remove('open'); });
+  });
+
+  function updateMessagesNotificationBadge() {
+    fetch('/messages/unread-count')
+      .then(response => response.json())
+      .then(data => {
+        const messagesLinks = document.querySelectorAll('a[href="/messages"]');
+        messagesLinks.forEach(link => {
+          if (data.unread_count > 0) {
+            let badge = link.querySelector('.msg-unread-badge');
+            if (!badge) {
+              badge = document.createElement('span');
+              badge.className = 'msg-unread-badge';
+              badge.style.cssText = 'display: inline-block; background: #f5576c; color: white; width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 18px; font-size: 0.7rem; font-weight: 700; margin-left: 0.5rem; box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);';
+              link.appendChild(badge);
+            }
+            badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+          } else {
+            const badge = link.querySelector('.msg-unread-badge');
+            if (badge) badge.remove();
+          }
+        });
+      })
+      .catch(error => console.error('Badge update error:', error));
+  }
+
+  updateMessagesNotificationBadge();
+  setInterval(updateMessagesNotificationBadge, 3000);
+</script>
