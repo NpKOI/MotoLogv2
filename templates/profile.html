@@ -155,6 +155,65 @@
       color: #999;
       padding: 2rem;
     }
+
+    /* Delete confirmation modal styles */
+    #confirmDeleteModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+    }
+
+    #confirmDeleteModal .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    #confirmDeleteModal .modal-content {
+      position: relative;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      width: 90%;
+      max-width: 460px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+    }
+
+    #confirmDeleteModal h3 {
+      margin-top: 0;
+      color: #c53030;
+    }
+
+    #confirmDeleteModal p {
+      color: #555;
+    }
+
+    #confirmDeleteModal .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    #confirmDeleteModal .modal-actions button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #confirmDeleteModal .modal-actions .cancel-btn {
+      background: #f0f2f5;
+      border: none;
+    }
+
+    #confirmDeleteModal .modal-actions .confirm-btn {
+      background: #c53030;
+      color: white;
+      border: none;
+    }
   </style>
 </head>
 <body>
@@ -185,7 +244,15 @@
         <div class="profile-details">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
             <div class="profile-username">{{ user['username'] }}</div>
-            <a href="/profile/edit" class="edit-profile-btn" style="background: #667eea; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; border: none; cursor: pointer; font-weight: 700;">✏️ Edit Profile</a>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <a href="/profile/edit" class="edit-profile-btn" style="background: #667eea; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">✏️ Edit Profile</a>
+
+              <!-- Delete profile trigger (opens modal) -->
+              <button id="deleteProfileBtn" type="button" class="edit-profile-btn" style="background:#f5576c; border:none; padding:8px 16px; border-radius:8px; color:white; cursor:pointer;">🗑️ Delete Profile</button>
+
+              <!-- Hidden form submitted when confirmed -->
+              <form id="deleteProfileForm" method="POST" action="/profile/delete" style="display:none;"></form>
+            </div>
           </div>
 
           <div class="profile-stats">
@@ -308,6 +375,19 @@
         <div class="empty-state">You're not following anyone yet. Explore riders on the leaderboard!</div>
       {% endif %}
     </div>
+
+    <!-- Delete confirmation modal -->
+    <div id="confirmDeleteModal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:3000;">
+      <div style="position:absolute; inset:0; background:rgba(0,0,0,0.4);"></div>
+      <div style="position:relative; background:white; border-radius:10px; padding:20px; width:90%; max-width:460px; box-shadow:0 12px 36px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:#c53030;">Delete your profile?</h3>
+        <p style="color:#555;">This will permanently remove your account and all related data (rides, messages, likes, follows, groups you own). This action cannot be undone.</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+          <button id="cancelDeleteBtn" style="background:#f0f2f5; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Cancel</button>
+          <button id="confirmDeleteBtn" style="background:#c53030; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Yes, delete</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -321,6 +401,46 @@
       if (!input.files || !input.files.length) { label.textContent = ''; return; }
       label.textContent = input.files[0].name;
     }
+
+    // Delete profile confirmation
+    document.getElementById('deleteProfileBtn').addEventListener('click', function() {
+      const confirmed = confirm('Delete your profile and all your data? This is irreversible. Are you sure?');
+      if (confirmed) {
+        const doubleCheck = confirm('Last chance: Delete your account now?');
+        if (doubleCheck) {
+          // If confirmed twice, submit the hidden form
+          document.getElementById('deleteProfileForm').submit();
+        }
+      }
+    });
+
+    (function(){
+      const openBtn = document.getElementById('deleteProfileBtn');
+      const modal = document.getElementById('confirmDeleteModal');
+      const cancel = document.getElementById('cancelDeleteBtn');
+      const confirm = document.getElementById('confirmDeleteBtn');
+      const form = document.getElementById('deleteProfileForm');
+
+      if (!openBtn || !modal || !cancel || !confirm || !form) return;
+
+      openBtn.addEventListener('click', function(){
+        modal.style.display = 'flex';
+      });
+
+      cancel.addEventListener('click', function(){
+        modal.style.display = 'none';
+      });
+
+      // clicking the semi-transparent backdrop also cancels
+      modal.addEventListener('click', function(e){
+        if (e.target === modal) modal.style.display = 'none';
+      });
+
+      confirm.addEventListener('click', function(){
+        // submit the hidden POST form
+        form.submit();
+      });
+    })();
   </script>
 </body>
 </html>

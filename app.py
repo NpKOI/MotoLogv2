@@ -1161,5 +1161,137 @@ def unread_count():
     
     return {'unread_count': user_unread + group_unread}
 
+# Add ride (GET shows form, POST creates record)
+@app.route('/add-ride', methods=['GET', 'POST'])
+def add_ride():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+
+    # Provide user's bikes for the select box
+    bikes = query_db('SELECT * FROM bikes WHERE user_id = ?', (user_id,))
+
+    if request.method == 'POST':
+        bike_id = request.form.get('bike_id') or None
+        date = request.form.get('date', '').strip() or None
+        try:
+            distance = float(request.form.get('distance', 0) or 0)
+        except ValueError:
+            distance = 0.0
+        try:
+            time_val = float(request.form.get('time', 0) or 0)
+        except ValueError:
+            time_val = 0.0
+
+        description = request.form.get('description', '').strip() or None
+        tags_list = request.form.getlist('tag') or []
+        custom = request.form.get('custom_tags', '').strip()
+        if custom:
+            tags_list += [t.strip() for t in custom.split(',') if t.strip()]
+        tags = ','.join(tags_list) if tags_list else None
+        is_private = 1 if request.form.get('is_private') == 'on' else 0
+
+        try:
+            # NOTE: no created_at column in your schema, so do not insert it
+            query_db('''
+                INSERT INTO rides
+                (user_id, bike_id, date, distance, time, description, tags, is_private)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, bike_id, date, distance, time_val, description, tags, is_private))
+            flash('Ride saved.', 'success')
+        except Exception as e:
+            flash('Failed to save ride: ' + str(e), 'error')
+
+        return redirect(url_for('dashboard'))
+
+    # GET -> show add ride form
+    return render_template('add_ride.html', bikes=bikes)
+
+# Delete a ride (owner-only). Template currently links to /delete-ride/<id>
+@app.route('/delete-ride/<int:ride_id>')
+def delete_ride(ride_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    uid = session['user_id']
+
+    # Ensure the ride exists and belongs to the current user
+    ride = query_db('SELECT * FROM rides WHERE id = ? AND user_id = ?', (ride_id, uid), one=True)
+    if not ride:
+        flash('Ride not found or permission denied.', 'error')
+        return redirect(url_for('dashboard'))
+
+    try:
+        # Remove dependent rows first (comments, likes) to avoid FK issues / orphaned rows
+        query_db('DELETE FROM likes WHERE ride_id = ?', (ride_id,))
+        query_db('DELETE FROM comments WHERE ride_id = ?', (ride_id,))
+        # Delete the ride itself
+        query_db('DELETE FROM rides WHERE id = ? AND user_id = ?', (ride_id, uid))
+        flash('Ride deleted.', 'success')
+    except Exception as e:
+        flash('Failed to delete ride: ' + str(e), 'error')
+
+    return redirect(url_for('dashboard'))
+
+# AJAX / simple GET: search users by username substring
+@app.route('/search/users')
+def search_users():
+    q = (request.args.get('q') or '').strip()
+    if not q:
+        return {'users': []}
+    pattern = f"%{q}%"
+    rows = query_db('SELECT id, username, profile_pic FROM users WHERE username LIKE ? COLLATE NOCASE LIMIT 30', (pattern,))
+    users = [{'id': r['id'], 'username': r['username'], 'profile_pic': r['profile_pic']} for r in rows]
+    return {'users': users}
+
+@app.route('/profile/delete', methods=['POST'])
+def delete_profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    uid = session['user_id']
+
+    try:
+        # Delete likes and comments by user
+        query_db('DELETE FROM likes WHERE user_id = ?', (uid,))
+        query_db('DELETE FROM comments WHERE user_id = ?', (uid,))
+
+        # Remove follow relationships (both follower and followed)
+        query_db('DELETE FROM follows WHERE follower_id = ? OR followed_id = ?', (uid, uid))
+
+        # Delete user messages (sent or received)
+        query_db('DELETE FROM messages WHERE sender_id = ? OR recipient_id = ?', (uid, uid))
+
+        # Delete group messages sent by user
+        query_db('DELETE FROM group_messages WHERE sender_id = ?', (uid,))
+
+        # Remove from group_members and delete groups owned by the user
+        # First, find groups owned by the user and delete them and their data
+        owned_groups = query_db('SELECT id FROM groups WHERE owner_id = ?', (uid,))
+        for g in owned_groups:
+            gid = g['id']
+            query_db('DELETE FROM group_messages WHERE group_id = ?', (gid,))
+            query_db('DELETE FROM group_members WHERE group_id = ?', (gid,))
+            query_db('DELETE FROM groups WHERE id = ?', (gid,))
+
+        # Remove any remaining group memberships for this user
+        query_db('DELETE FROM group_members WHERE user_id = ?', (uid,))
+
+        # Delete rides (and their likes/comments)
+        # comments/likes for rides created by this user already deleted above per user_id,
+        # but remove ride rows themselves:
+        query_db('DELETE FROM rides WHERE user_id = ?', (uid,))
+
+        # Finally delete the user row
+        query_db('DELETE FROM users WHERE id = ?', (uid,))
+
+        # Clear session and log out
+        session.clear()
+        flash('Your account has been deleted. Goodbye.', 'success')
+        return redirect(url_for('register'))
+    except Exception as e:
+        # Something failed; don't clear session if deletion didn't complete
+        flash('Failed to delete account: ' + str(e), 'error')
+        return redirect(url_for('profile'))
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Use 0.0.0.0 if you want access from other devices, otherwise default is 127.0.0.1
+    app.run(debug=True, host='127.0.0.1', port=5000)
