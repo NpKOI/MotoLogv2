@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Event Detail</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .event-hero { background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; }
+    .event-hero h1 { margin: 0 0 1rem 0; font-size: 2rem; }
+    .event-hero .meta { display: flex; gap: 2rem; flex-wrap: wrap; font-size: 0.95rem; opacity: 0.95; }
+    .event-image { width: 100%; max-height: 400px; object-fit: cover; border-radius: 12px; margin-bottom: 2rem; box-shadow: var(--shadow-2); }
+    .event-content { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+    .event-main { background: var(--card-bg); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow-1); }
+    .event-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+    .event-info-card { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow-1); }
+    .event-info-label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+    .event-info-value { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+    .event-description { color: var(--text); line-height: 1.6; margin-bottom: 2rem; }
+    .event-description h3 { margin-top: 0; margin-bottom: 1rem; }
+    .participants-list { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+    .participant-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; overflow: hidden; border: 2px solid var(--card-bg); cursor: pointer; transition: all 0.2s; }
+    .participant-avatar:hover { transform: scale(1.1); }
+    .participant-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .btn-action { background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; padding: 1rem 2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 0.8rem; transition: all 0.2s; }
+    .btn-action:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(86,118,240,0.2); }
+    .btn-action.secondary { background: transparent; border: 2px solid var(--primary-500); color: var(--primary-500); }
+    .btn-action.danger { background: linear-gradient(135deg, #e63946, var(--accent)); }
+    .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .status-badge.upcoming { background: color-mix(in srgb, var(--primary-500) 15%, transparent); color: var(--primary-600); }
+    .status-badge.ongoing { background: color-mix(in srgb, #10b981 15%, transparent); color: #10b981; }
+    .status-badge.past { background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted); }
+    .status-badge.cancelled { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+    .status-badge.full { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+    .creator-card { background: linear-gradient(135deg, color-mix(in srgb, var(--primary-500) 5%, transparent), color-mix(in srgb, var(--primary-600) 5%, transparent)); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary-500); }
+    .creator-info { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+    .creator-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--primary-500); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; }
+    .creator-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .creator-name { font-weight: 600; color: var(--text); }
+    .creator-label { font-size: 0.85rem; color: var(--muted); }
+    .map-container { width: 100%; height: 300px; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, var(--muted) 10%, transparent); display: flex; align-items: center; justify-content: center; margin-top: 1rem; }
+    @media (max-width: 900px) {
+      .event-content { grid-template-columns: 1fr; }
+      .event-hero h1 { font-size: 1.5rem; }
+      .event-hero .meta { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Hero Section -->
+    {% if event['cover_image'] %}
+      <img src="{{ event['cover_image'] }}" alt="{{ event['title'] }}" class="event-image">
+    {% endif %}
+
+    <div class="event-hero">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+          <span class="status-badge {{ event['status'] }}">{{ event['status_label'] }}</span>
+          <h1>{{ event['title'] }}</h1>
+          <span style="font-size: 0.9rem; opacity: 0.9;">{{ event['category_label'] }}</span>
+        </div>
+        
+        <!-- Quick Action Buttons -->
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+          {% if not event['is_creator'] %}
+            {% if event['can_join'] %}
+              <form method="POST" action="{{ url_for('join_event', event_id=event['id']) }}" style="display: inline;">
+                <button type="submit" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.7rem 1.4rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">✅ Join</button>
+              </form>
+            {% elif event['can_leave'] %}
+              <form method="POST" action="{{ url_for('leave_event', event_id=event['id']) }}" style="display: inline;">
+                <button type="submit" style="background: transparent; border: 2px solid white; color: white; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">❌ Leave</button>
+              </form>
+            {% endif %}
+          {% endif %}
+          
+          {% if event['is_creator'] %}
+            <a href="{{ url_for('edit_event', event_id=event['id']) }}" style="background: transparent; border: 2px solid white; color: white; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-block; transition: all 0.2s;">✏️ Edit</a>
+            <form method="POST" action="{{ url_for('delete_event', event_id=event['id']) }}" style="display: inline;">
+              <button type="submit" style="background: #ef4444; color: white; padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onclick="return confirm('Delete this event?');">🗑️ Delete</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="event-content">
+      <div class="event-main">
+        <h3>📖 About This Event</h3>
+        <div class="event-description">{{ event['description'] }}</div>
+
+        <hr style="border: none; border-top: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); margin: 2rem 0;">
+
+        <h3>👥 Participants ({{ event['participant_count'] }}{% if event['max_participants'] %}/{{ event['max_participants'] }}{% endif %})</h3>
+        {% if participants %}
+          <div class="participants-list">
+            {% for participant in participants %}
+              <a href="{{ url_for('user_profile', user_id=participant['id']) }}" style="text-decoration: none;">
+                <div class="participant-avatar" title="{{ participant['username'] }}">
+                  {% if participant['profile_pic'] %}
+                    <img src="{{ participant['profile_pic'] }}" alt="{{ participant['username'] }}">
+                  {% else %}
+                    {{ participant['username'][0].upper() }}
+                  {% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p style="color: var(--muted); font-style: italic;">No participants yet. Be the first to join!</p>
+        {% endif %}
+      </div>
+
+      <!-- Sidebar -->
+      <div class="event-sidebar">
+        <!-- Quick Info Card -->
+        <div class="event-info-card">
+          <div class="event-info-label">📅 When</div>
+          <div class="event-info-value">{{ event['event_date'] }}</div>
+        </div>
+
+        <div class="event-info-card">
+          <div class="event-info-label">📍 Where</div>
+          <div class="event-info-value">{{ event['location_name'] }}</div>
+          <p style="color: var(--muted); font-size: 0.9rem; margin-top: 0.8rem;">📌 City: {{ event['city'] }}</p>
+          
+          {% if event['latitude'] and event['longitude'] %}
+            <p style="color: var(--muted); font-size: 0.9rem; margin-top: 0.3rem;">Coordinates: {{ event['latitude'] }}, {{ event['longitude'] }}</p>
+            <div style="width: 100%; height: 300px; border-radius: 12px; overflow: hidden; margin-top: 1rem; box-shadow: var(--shadow-1);">
+              <iframe 
+                width="100%" 
+                height="100%" 
+                frameborder="0" 
+                style="border: none;" 
+                src="https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q={{ event['latitude'] }},{{ event['longitude'] }}" 
+                allowfullscreen="" 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade">
+              </iframe>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.8rem;">
+              <a href="https://www.google.com/maps?q={{ event['latitude'] }},{{ event['longitude'] }}" target="_blank" style="color: var(--primary-600); text-decoration: none;">📍 Open in Google Maps</a>
+            </p>
+          {% else %}
+            <p style="color: var(--muted); font-style: italic; margin-top: 0.8rem;">Location coordinates not provided</p>
+          {% endif %}
+        </div>
+
+        <div class="event-info-card">
+          <div class="event-info-label">👥 Participants</div>
+          <div class="event-info-value">{{ event['participant_count'] }}{% if event['max_participants'] %}/{{ event['max_participants'] }}{% endif %}</div>
+          {% if event['is_full'] %}
+            <p style="color: var(--accent); font-size: 0.9rem; margin-top: 0.5rem; font-weight: 600;">⛔ This event is full</p>
+          {% elif event['spaces_remaining'] is not none %}
+            <p style="color: var(--primary-600); font-size: 0.9rem; margin-top: 0.5rem;">{{ event['spaces_remaining'] }} spot{% if event['spaces_remaining'] != 1 %}s{% endif %} remaining</p>
+          {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        {% if not event['is_creator'] %}
+          {% if event['can_join'] %}
+            <form method="POST" action="{{ url_for('join_event', event_id=event['id']) }}">
+              <button type="submit" class="btn-action">✅ Join Event</button>
+            </form>
+          {% elif event['can_leave'] %}
+            <form method="POST" action="{{ url_for('leave_event', event_id=event['id']) }}">
+              <button type="submit" class="btn-action secondary">❌ Leave Event</button>
+            </form>
+          {% elif event['is_participant'] %}
+            <div style="padding: 1rem; background: color-mix(in srgb, #10b981 15%, transparent); border-radius: 8px; text-align: center; color: #10b981; font-weight: 600;">
+              ✅ You are participating
+            </div>
+          {% elif event['is_full'] %}
+            <div style="padding: 1rem; background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 8px; text-align: center; color: var(--accent); font-weight: 600;">
+              ⛔ This event is full
+            </div>
+          {% elif event['status'] not in ('upcoming', 'ongoing') %}
+            <div style="padding: 1rem; background: color-mix(in srgb, var(--muted) 15%, transparent); border-radius: 8px; text-align: center; color: var(--muted); font-weight: 600;">
+              {{ event['status_label'] }}
+            </div>
+          {% endif %}
+        {% endif %}
+
+        <!-- Creator Card -->
+        <div class="creator-card">
+          <p style="margin: 0 0 1rem 0; color: var(--muted); font-size: 0.85rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Organized by</p>
+          <div class="creator-info">
+            <div class="creator-avatar">
+              {% if event['creator_pic'] %}
+                <img src="{{ event['creator_pic'] }}" alt="{{ event['creator_username'] }}">
+              {% else %}
+                {{ event['creator_username'][0].upper() }}
+              {% endif %}
+            </div>
+            <div>
+              <div class="creator-name">{{ event['creator_username'] }}</div>
+              <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Event organizer</p>
+            </div>
+          </div>
+          <a href="{{ url_for('user_profile', user_id=event['creator_id']) }}" class="btn-action secondary" style="padding: 0.7rem; text-align: center; text-decoration: none;">View Profile</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

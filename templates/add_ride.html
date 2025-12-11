@@ -7,14 +7,17 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <style>
     .tags-container { padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; }
-    .tags-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .tag-section { margin-bottom: 1.8rem; }
+    .tag-section-title { font-size: 0.95rem; font-weight: 700; color: var(--primary-600); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.9rem; }
+    .tags-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 0; }
     .tag-checkbox { display: none; }
-    .tag-label { display:flex; align-items:center; justify-content:center; padding:12px 15px; border-radius:8px; cursor:pointer; font-weight:700; transition: all .18s ease; border:1px solid color-mix(in srgb,var(--muted) 8%, transparent); background: transparent; color: var(--text); }
+    .tag-label { display: flex; align-items: center; justify-content: center; padding: 12px 15px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.18s ease; border: 1px solid color-mix(in srgb, var(--muted) 8%, transparent); background: transparent; color: var(--text); }
     .tag-label:hover { transform: translateY(-3px); box-shadow: var(--shadow-1); }
-    .tag-checkbox:checked + .tag-label { background: linear-gradient(135deg,var(--primary-500),var(--primary-600)); color:white; box-shadow: 0 8px 28px rgba(86,118,240,0.12); border-color: transparent; }
-    .custom-tags-input { width:100%; padding:12px 14px; border-radius:10px; border:1px solid color-mix(in srgb,var(--muted) 10%, transparent); background:transparent; color:var(--text); }
-    .tags-note { color: var(--muted); font-size:0.92rem; margin-top:0.5rem; }
-    .form-card { padding:18px; border-radius:12px; }
+    .tag-checkbox:checked + .tag-label { background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; box-shadow: 0 8px 28px rgba(86,118,240,0.12); border-color: transparent; }
+    .custom-tags-input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--muted) 10%, transparent); background: transparent; color: var(--text); font-family: inherit; }
+    .custom-tags-input:focus { outline: none; border-color: var(--primary-500); box-shadow: 0 8px 30px rgba(86,118,240,0.08); }
+    .tags-note { color: var(--muted); font-size: 0.92rem; margin-top: 0.5rem; }
+    .form-card { padding: 18px; border-radius: 12px; }
   </style>
 </head>
 <body>
@@ -60,27 +63,46 @@
           <input type="number" id="time" name="time" step="0.1" placeholder="2.5" required>
         </div>
 
+        <!-- Tags organized into 3 categories -->
         <div class="tags-container">
-          <label style="font-weight:700; display:block; margin-bottom:0.75rem;">🏷️ Ride Tags</label>
-          <div class="tags-grid">
-            <div><input type="checkbox" id="tag_sunny" class="tag-checkbox" name="tag" value="sunny"><label for="tag_sunny" class="tag-label">☀️ Sunny</label></div>
-            <div><input type="checkbox" id="tag_rain" class="tag-checkbox" name="tag" value="rain"><label for="tag_rain" class="tag-label">🌧️ Rain</label></div>
-            <div><input type="checkbox" id="tag_cloudy" class="tag-checkbox" name="tag" value="cloudy"><label for="tag_cloudy" class="tag-label">☁️ Cloudy</label></div>
-            <div><input type="checkbox" id="tag_cold" class="tag-checkbox" name="tag" value="cold"><label for="tag_cold" class="tag-label">❄️ Cold</label></div>
+          <label style="font-weight: 700; display: block; margin-bottom: 1rem; font-size: 1rem;">🏷️ Ride Tags</label>
 
-            <div><input type="checkbox" id="tag_gravel" class="tag-checkbox" name="tag" value="gravel"><label for="tag_gravel" class="tag-label">🪨 Gravel</label></div>
-            <div><input type="checkbox" id="tag_offroad" class="tag-checkbox" name="tag" value="offroad"><label for="tag_offroad" class="tag-label">🏜️ Offroad</label></div>
-            <div><input type="checkbox" id="tag_highway" class="tag-checkbox" name="tag" value="highway"><label for="tag_highway" class="tag-label">🛣️ Highway</label></div>
-            <div><input type="checkbox" id="tag_city" class="tag-checkbox" name="tag" value="city"><label for="tag_city" class="tag-label">🏙️ City</label></div>
-
-            <div><input type="checkbox" id="tag_commute" class="tag-checkbox" name="tag" value="commute"><label for="tag_commute" class="tag-label">🚗 Commute</label></div>
-            <div><input type="checkbox" id="tag_tour" class="tag-checkbox" name="tag" value="tour"><label for="tag_tour" class="tag-label">🗺️ Tour</label></div>
-            <div><input type="checkbox" id="tag_sport" class="tag-checkbox" name="tag" value="sport"><label for="tag_sport" class="tag-label">⚡ Sport</label></div>
-            <div><input type="checkbox" id="tag_leisure" class="tag-checkbox" name="tag" value="leisure"><label for="tag_leisure" class="tag-label">😎 Leisure</label></div>
+          <!-- Weather Category -->
+          <div class="tag-section">
+            <div class="tag-section-title">☀️ Weather</div>
+            <div class="tags-grid">
+              <div><input type="checkbox" id="tag_sunny" class="tag-checkbox" name="tag" value="sunny"><label for="tag_sunny" class="tag-label">☀️ Sunny</label></div>
+              <div><input type="checkbox" id="tag_rain" class="tag-checkbox" name="tag" value="rain"><label for="tag_rain" class="tag-label">🌧️ Rain</label></div>
+              <div><input type="checkbox" id="tag_cloudy" class="tag-checkbox" name="tag" value="cloudy"><label for="tag_cloudy" class="tag-label">☁️ Cloudy</label></div>
+              <div><input type="checkbox" id="tag_cold" class="tag-checkbox" name="tag" value="cold"><label for="tag_cold" class="tag-label">❄️ Cold</label></div>
+            </div>
           </div>
 
-          <div>
-            <label for="custom_tags" style="display:block; margin-bottom:0.5rem; font-weight:700;">Custom Tags</label>
+          <!-- Terrain Category -->
+          <div class="tag-section">
+            <div class="tag-section-title">🛣️ Terrain</div>
+            <div class="tags-grid">
+              <div><input type="checkbox" id="tag_gravel" class="tag-checkbox" name="tag" value="gravel"><label for="tag_gravel" class="tag-label">🪨 Gravel</label></div>
+              <div><input type="checkbox" id="tag_offroad" class="tag-checkbox" name="tag" value="offroad"><label for="tag_offroad" class="tag-label">🏜️ Offroad</label></div>
+              <div><input type="checkbox" id="tag_highway" class="tag-checkbox" name="tag" value="highway"><label for="tag_highway" class="tag-label">🛣️ Highway</label></div>
+              <div><input type="checkbox" id="tag_city" class="tag-checkbox" name="tag" value="city"><label for="tag_city" class="tag-label">🏙️ City</label></div>
+            </div>
+          </div>
+
+          <!-- Style/Purpose Category -->
+          <div class="tag-section">
+            <div class="tag-section-title">🎯 Style & Purpose</div>
+            <div class="tags-grid">
+              <div><input type="checkbox" id="tag_commute" class="tag-checkbox" name="tag" value="commute"><label for="tag_commute" class="tag-label">🚗 Commute</label></div>
+              <div><input type="checkbox" id="tag_tour" class="tag-checkbox" name="tag" value="tour"><label for="tag_tour" class="tag-label">🗺️ Tour</label></div>
+              <div><input type="checkbox" id="tag_sport" class="tag-checkbox" name="tag" value="sport"><label for="tag_sport" class="tag-label">⚡ Sport</label></div>
+              <div><input type="checkbox" id="tag_leisure" class="tag-checkbox" name="tag" value="leisure"><label for="tag_leisure" class="tag-label">😎 Leisure</label></div>
+            </div>
+          </div>
+
+          <!-- Custom Tags -->
+          <div style="margin-top: 1.8rem;">
+            <label for="custom_tags" style="display: block; margin-bottom: 0.5rem; font-weight: 700; color: var(--primary-600); text-transform: uppercase; font-size: 0.95rem;">+ Add Custom Tags</label>
             <input type="text" id="custom_tags" name="custom_tags" class="custom-tags-input" placeholder="Add custom tags separated by commas">
             <div class="tags-note">💡 Separate multiple custom tags with commas</div>
           </div>
@@ -92,19 +114,19 @@
         </div>
 
         <div class="form-group">
-          <label style="display:flex; align-items:center; gap:0.5rem;">
-            <input type="checkbox" id="is_private" name="is_private"> 
-            <span style="font-weight:700;">Mark ride as private</span>
+          <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="is_private" name="is_private">
+            <span style="font-weight: 700;">Mark ride as private</span>
           </label>
-          <div style="color:var(--muted); font-size:0.9rem; margin-top:0.5rem;">Private rides are visible only to you.</div>
+          <div style="color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem;">Private rides are visible only to you.</div>
         </div>
 
         <div class="form-group">
-          <button type="submit" class="post-btn">Save Ride</button>
+          <button type="submit" style="background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; padding: 1rem 2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; transition: all 0.2s; margin-top: 1rem;">✅ Save Ride</button>
         </div>
 
-        <p style="text-align:center; margin-top:0.5rem;">
-          <a href="/dashboard" style="color:var(--primary-600); text-decoration:none;">← Back to Dashboard</a>
+        <p style="text-align: center; margin-top: 0.5rem;">
+          <a href="/dashboard" style="color: var(--primary-600); text-decoration: none;">← Back to Dashboard</a>
         </p>
       </form>
     </div>

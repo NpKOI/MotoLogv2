@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Create Event</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .form-container { max-width: 700px; margin: 0 auto; }
+    .form-section { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: var(--shadow-1); border-left: 4px solid var(--primary-500); }
+    .form-section h3 { margin: 0 0 1rem 0; color: var(--text); font-size: 1.1rem; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--text); }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 0.8rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
+      border-radius: 8px; background: transparent; color: var(--text); font-family: inherit; font-size: inherit;
+    }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      outline: none; border-color: var(--primary-500);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-500) 10%, transparent);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .coordinates-input { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .help-text { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+    
+    /* Enhanced file upload styling */
+    .file-input-wrapper {
+      position: relative; overflow: hidden; display: inline-block; width: 100%;
+    }
+    .file-input-label {
+      display: flex; align-items: center; justify-content: center; gap: 0.8rem;
+      padding: 2rem; border: 2px dashed var(--primary-500); border-radius: 8px;
+      background: color-mix(in srgb, var(--primary-500) 5%, transparent); cursor: pointer;
+      transition: all 0.2s; font-weight: 500; color: var(--primary-600);
+    }
+    .file-input-label:hover {
+      background: color-mix(in srgb, var(--primary-500) 10%, transparent);
+      border-color: var(--primary-600);
+    }
+    #cover_image { display: none; }
+    #file-name { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+    
+    /* Enhanced scope selector */
+    .scope-selector {
+      display: flex; gap: 0.5rem; background: color-mix(in srgb, var(--muted) 10%, transparent);
+      border-radius: 8px; padding: 0.3rem;
+    }
+    .scope-option {
+      flex: 1; padding: 0.8rem; border: none; border-radius: 6px; cursor: pointer;
+      background: transparent; color: var(--text); font-weight: 600; transition: all 0.2s;
+      text-align: center;
+    }
+    .scope-option:hover { background: color-mix(in srgb, var(--primary-500) 15%, transparent); }
+    .scope-option.active {
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      color: white;
+    }
+    
+    .btn-submit {
+      background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+      color: white; padding: 1rem 2rem; border: none; border-radius: 8px;
+      font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%;
+      transition: all 0.2s;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(86,118,240,0.2); }
+    .map-note { background: color-mix(in srgb, var(--primary-500) 10%, transparent); padding: 1rem;
+      border-radius: 8px; border-left: 4px solid var(--primary-500); margin-bottom: 1.5rem; }
+    .map-note p { margin: 0; color: var(--text); font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div class="form-container">
+      <h1 style="margin-top: 0;">🏍️ Create New Event</h1>
+      
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" enctype="multipart/form-data">
+        <!-- Basic Info -->
+        <div class="form-section">
+          <h3>📝 Event Details</h3>
+          
+          <div class="form-group">
+            <label for="title">Event Title *</label>
+            <input type="text" id="title" name="title" required placeholder="e.g., Mountain Loop Ride, Sunday Coffee Meetup">
+            <p class="help-text">Give your event a catchy, descriptive title (minimum 3 characters)</p>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description *</label>
+            <textarea id="description" name="description" required placeholder="Describe the event in detail. What should riders expect? What's the difficulty level?"></textarea>
+            <p class="help-text">Minimum 10 characters. Be descriptive to attract participants</p>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Event Type *</label>
+            <select id="category" name="category" required>
+              <option value="">-- Select Event Type --</option>
+              {% for cat_key, cat_label in categories.items() %}
+                <option value="{{ cat_key }}">{{ cat_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Date & Time -->
+        <div class="form-section">
+          <h3>📅 When?</h3>
+          
+          <div class="form-group">
+            <label for="event_date">Date & Time *</label>
+            <input type="datetime-local" id="event_date" name="event_date" required>
+            <p class="help-text">Event must be scheduled for the future</p>
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div class="form-section">
+          <h3>📍 Where?</h3>
+          
+          <div class="form-group">
+            <label for="city">City *</label>
+            <input type="text" id="city" name="city" required placeholder="e.g., Sofia, London, Barcelona">
+            <p class="help-text">The city where the event takes place</p>
+          </div>
+
+          <div class="form-group">
+            <label for="location_name">Specific Location Name *</label>
+            <input type="text" id="location_name" name="location_name" required placeholder="e.g., Shell Gas Station, Main Plaza">
+            <p class="help-text">More specific location details within the city</p>
+          </div>
+
+          <div class="map-note">
+            <p><strong>💡 GPS Coordinates (Optional):</strong> Use Google Maps to find exact coordinates for better navigation. Right-click on the location and copy the coordinates.</p>
+          </div>
+
+          <div class="form-group">
+            <label>GPS Coordinates (Optional)</label>
+            <div class="coordinates-input">
+              <div>
+                <label style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.3rem;">Latitude</label>
+                <input type="number" name="latitude" placeholder="42.6977" step="0.0001">
+              </div>
+              <div>
+                <label style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.3rem;">Longitude</label>
+                <input type="number" name="longitude" placeholder="23.3219" step="0.0001">
+              </div>
+            </div>
+            <p class="help-text">If you provide coordinates, a map will be shown on the event page</p>
+          </div>
+        </div>
+
+        <!-- Capacity & Media -->
+        <div class="form-section">
+          <h3>⚙️ Settings</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="max_participants">Max Participants (Optional)</label>
+              <input type="number" id="max_participants" name="max_participants" min="1" placeholder="Leave empty for unlimited">
+              <p class="help-text">Set a cap on participants or leave empty for unlimited</p>
+            </div>
+          </div>
+
+          <!-- Enhanced file upload -->
+          <div class="form-group">
+            <label for="cover_image">Cover Image (Optional)</label>
+            <div class="file-input-wrapper">
+              <label for="cover_image" class="file-input-label">
+                <span>📸 Click to upload or drag & drop</span>
+                <span style="font-size: 0.85rem; color: var(--muted);">JPG, PNG, GIF (max 5MB)</span>
+              </label>
+              <input type="file" id="cover_image" name="cover_image" accept="image/*">
+              <div id="file-name"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visibility -->
+        <div class="form-section">
+          <h3>🌍 Event Scope</h3>
+          
+          <div class="form-group">
+            <p style="margin: 0 0 1rem 0; color: var(--muted); font-size: 0.95rem;">Choose whether this event is visible to riders in your country or worldwide</p>
+            <div class="scope-selector">
+              <button type="button" class="scope-option active" data-scope="local" onclick="selectScope('local', this)">
+                📍 Local (Your Country)
+              </button>
+              <button type="button" class="scope-option" data-scope="global" onclick="selectScope('global', this)">
+                🌍 Global
+              </button>
+            </div>
+            <input type="hidden" id="is_local_hidden" name="is_local" value="on">
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-submit">✨ Create Event</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // File upload visualization
+    document.getElementById('cover_image').addEventListener('change', function(e) {
+      const fileName = e.target.files[0]?.name || '';
+      document.getElementById('file-name').textContent = fileName ? '✅ ' + fileName : '';
+    });
+
+    // Scope selector
+    function selectScope(scope, element) {
+      document.querySelectorAll('.scope-option').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+      document.getElementById('is_local_hidden').value = scope === 'local' ? 'on' : 'off';
+    }
+  </script>
+</body>
+</html>

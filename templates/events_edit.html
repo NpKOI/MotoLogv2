@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Edit Event</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .form-container { max-width: 700px; margin: 0 auto; }
+    .form-section { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: var(--shadow-1); }
+    .form-section h3 { margin: 0 0 1rem 0; color: var(--text); font-size: 1.1rem; }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: var(--text); }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: inherit;
+    }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary-500);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-500) 10%, transparent);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .coordinates-input { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .help-text { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+    .current-image { width: 120px; height: 120px; border-radius: 8px; object-fit: cover; margin-bottom: 1rem; }
+    .btn-submit { background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; padding: 1rem 2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; width: 100%; }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(86,118,240,0.2); }
+    .warning-box { background: color-mix(in srgb, var(--accent) 10%, transparent); border-left: 4px solid var(--accent); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; }
+    .warning-box p { margin: 0; color: var(--accent); font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div class="form-container">
+      <h1 style="margin-top: 0;">✏️ Edit Event</h1>
+      
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% if event['status'] == 'past' %}
+        <div class="warning-box">
+          <p>⚠️ Cannot edit a past event.</p>
+        </div>
+      {% else %}
+
+      <form method="POST" enctype="multipart/form-data">
+        <!-- Basic Info -->
+        <div class="form-section">
+          <h3>📝 Event Details</h3>
+          
+          <div class="form-group">
+            <label for="title">Event Title</label>
+            <input type="text" id="title" name="title" value="{{ event['title'] }}" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required>{{ event['description'] }}</textarea>
+          </div>
+        </div>
+
+        <!-- Date & Time -->
+        <div class="form-section">
+          <h3>📅 When?</h3>
+          
+          <div class="form-group">
+            <label for="event_date">Date & Time</label>
+            <input type="datetime-local" id="event_date" name="event_date" value="{{ event['event_date'] }}" required>
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div class="form-section">
+          <h3>📍 Where?</h3>
+          
+          <div class="form-group">
+            <label for="location_name">Location Name</label>
+            <input type="text" id="location_name" name="location_name" value="{{ event['location_name'] }}" required>
+          </div>
+
+          <div class="form-group">
+            <label>GPS Coordinates</label>
+            <div class="coordinates-input">
+              <div>
+                <label style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.3rem;">Latitude</label>
+                <input type="number" name="latitude" value="{{ event['latitude'] }}" required step="0.0001">
+              </div>
+              <div>
+                <label style="font-weight: 500; font-size: 0.9rem; margin-bottom: 0.3rem;">Longitude</label>
+                <input type="number" name="longitude" value="{{ event['longitude'] }}" required step="0.0001">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Capacity & Media -->
+        <div class="form-section">
+          <h3>⚙️ Settings</h3>
+          
+          <div class="form-group">
+            <label for="max_participants">Max Participants</label>
+            <input type="number" id="max_participants" name="max_participants" value="{% if event['max_participants'] %}{{ event['max_participants'] }}{% endif %}" min="1">
+            <p class="help-text">Current: {{ query_db('SELECT COUNT(*) as c FROM event_participants WHERE event_id = ?', (event['id'],), one=True)['c'] }} participants joined</p>
+          </div>
+
+          <div class="form-group">
+            <label for="cover_image">Cover Image (Optional)</label>
+            {% if event['cover_image'] %}
+              <img src="{{ event['cover_image'] }}" alt="Current cover" class="current-image">
+              <p class="help-text">Upload a new image to replace the current one</p>
+            {% endif %}
+            <input type="file" id="cover_image" name="cover_image" accept="image/*">
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-submit">💾 Save Changes</button>
+      </form>
+
+      {% endif %}
+    </div>
+
+  </div>
+</body>
+</html>

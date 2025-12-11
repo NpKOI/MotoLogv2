@@ -5,6 +5,68 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>MotoLog - {{ user['username'] }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .ride-card-enhanced {
+      background: linear-gradient(180deg, var(--card-bg), color-mix(in srgb, var(--card-bg) 96%, var(--glass) 4%));
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-1);
+      border-left: 4px solid var(--primary-500);
+      transition: all 0.2s ease;
+    }
+    .ride-card-enhanced:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-2);
+    }
+    .ride-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .ride-date {
+      font-weight: 800;
+      color: var(--primary-600);
+      font-size: 1.1rem;
+    }
+    .ride-distance {
+      font-weight: 800;
+      color: var(--text);
+      font-size: 1.2rem;
+    }
+    .ride-meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 2px;
+    }
+    .ride-description {
+      color: var(--text);
+      margin: 12px 0;
+      line-height: 1.5;
+      font-size: 0.97rem;
+    }
+    .ride-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .ride-tag {
+      background: color-mix(in srgb, var(--primary-500) 6%, transparent);
+      color: var(--primary-600);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+    .ride-divider {
+      height: 1px;
+      background: color-mix(in srgb, var(--muted) 12%, transparent);
+      margin: 16px 0;
+    }
+  </style>
 </head>
 <body>
   <div class="dashboard-container">
@@ -74,29 +136,47 @@
       </div>
     </div>
 
-    <!-- Public Rides -->
-    <div class="profile-section" style="margin-top:18px;">
-      <h3>🏍️ Recent Public Rides ({{ rides|length }})</h3>
-      <div style="margin-top:12px;">
-        {% if rides %}
-          <div class="ride-list">
+    <!-- Public Rides Section -->
+    <div class="profile-section" style="margin-top:28px;">
+      <h3 style="margin:0 0 16px 0; color:var(--text);">🏍️ Recent Public Rides ({{ rides|length }})</h3>
+
+      {% if rides %}
+        <div style="margin-top:12px;">
           {% for ride in rides %}
-            <div class="ride-card-public">
-              <div class="ride-date-public">📅 {{ ride['date'] }}</div>
-              <div class="ride-details-public">🛣️ {{ ride['distance'] }} km • ⏱️ {{ ride['time'] }} hrs</div>
-              {% if ride['description'] %}
-                <div class="ride-description">{{ ride['description'] }}</div>
+            <div class="ride-card-enhanced">
+              <div class="ride-header">
+                <div>
+                  <div class="ride-date">📅 {{ ride['date'] }}</div>
+                  <div class="ride-meta">{{ ride['description'] or 'No description' }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div class="ride-distance">{{ ride['distance'] }} km</div>
+                  <div class="ride-meta">⏱️ {{ ride['time'] }} hrs</div>
+                </div>
+              </div>
+
+              {% if ride['tags'] %}
+                <div class="ride-tags">
+                  {% set tags = (ride['tags'] or '').split(',') %}
+                  {% for tag in tags %}
+                    {% set t = tag.strip() %}
+                    {% if t %}
+                      <div class="ride-tag">{{ t }}</div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
               {% endif %}
 
-              <div class="comments-section">
-                <div class="comments-title">💬 Comments</div>
+              <!-- Comments Section -->
+              <div style="margin-top:12px; padding-top:12px; border-top: 1px solid color-mix(in srgb,var(--muted) 8%, transparent);">
+                <div style="font-weight:700; color:var(--text); margin-bottom:10px;">💬 Comments</div>
 
                 {% set ride_comments = query_db('SELECT c.*, u.username, u.profile_pic FROM comments c JOIN users u ON c.user_id = u.id WHERE c.ride_id = ? ORDER BY c.created_at DESC', (ride['id'],)) %}
                 {% if ride_comments %}
                   {% for comment in ride_comments %}
-                    <div class="comment">
-                      <div class="comment-author">{{ comment['username'] }}</div>
-                      <div class="comment-text">{{ comment['content'] }}</div>
+                    <div style="background:color-mix(in srgb,var(--card-bg) 96%, var(--glass) 4%); padding:10px 12px; border-radius:8px; margin-bottom:8px;">
+                      <div style="font-weight:700; color:var(--text); font-size:0.95rem;">{{ comment['username'] }}</div>
+                      <div style="color:var(--text); margin-top:4px; font-size:0.93rem;">{{ comment['content'] }}</div>
                     </div>
                   {% endfor %}
                 {% else %}
@@ -104,19 +184,21 @@
                 {% endif %}
 
                 {% if session.get('user_id') %}
-                  <form method="POST" action="/ride/{{ ride['id'] }}/comment" class="comment-form">
-                    <input type="text" name="comment" class="comment-input" placeholder="Share your thoughts..." required>
-                    <button type="submit" class="comment-submit">Post</button>
+                  <form method="POST" action="/ride/{{ ride['id'] }}/comment" style="margin-top:10px; display:flex; gap:8px;">
+                    <input type="text" name="comment" style="flex:1; padding:8px 10px; border-radius:6px; border:1px solid color-mix(in srgb,var(--muted) 8%, transparent); background:transparent; color:var(--text); font-family:inherit;" placeholder="Share your thoughts..." required>
+                    <button type="submit" class="comment-submit" style="padding:8px 14px; font-size:0.9rem;">Post</button>
                   </form>
                 {% endif %}
               </div>
             </div>
           {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">No public rides yet.</div>
-        {% endif %}
-      </div>
+        </div>
+      {% else %}
+        <div class="stat-card" style="text-align:center;">
+          <div style="font-weight:700; color:var(--muted)">No public rides yet</div>
+          <div style="color:var(--muted); margin-top:8px;">This user hasn't shared any public rides.</div>
+        </div>
+      {% endif %}
     </div>
   </div>
 </body>

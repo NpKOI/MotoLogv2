@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 import sqlite3
 import os
 import urllib.parse, urllib.request, json
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET', 'dev_secret')
@@ -18,6 +19,25 @@ TAG_CATEGORIES = {
     'weather': {'sunny', 'rain', 'cloudy', 'cold'},
     'terrain': {'gravel', 'offroad', 'highway', 'city'},
     'style':   {'commute', 'tour', 'sport', 'leisure'}
+}
+
+# ======== EVENTS / MEETUPS SYSTEM ========
+
+# Define event categories and status
+EVENT_CATEGORIES = {
+    'ride': '🏍️ Group Ride',
+    'meetup': '☕ Meetup',
+    'charity': '❤️ Charity Ride',
+    'track_day': '🏁 Track Day',
+    'casual': '😎 Casual Hangout',
+    'tour': '🗺️ Multi-Day Tour'
+}
+
+EVENT_STATUSES = {
+    'upcoming': '📅 Upcoming',
+    'ongoing': '🔴 Ongoing',
+    'past': '⏱️ Past',
+    'cancelled': '❌ Cancelled'
 }
 
 def query_db(query, args=(), one=False):
@@ -1353,6 +1373,524 @@ def delete_profile():
         flash('Failed to delete account: ' + str(e), 'error')
         return redirect(url_for('profile'))
 
+# ======== EVENTS / MEETUPS SYSTEM ========
+
+def get_event_status(event_date_str):
+    """
+    Determine event status based on event date.
+    Returns: 'upcoming', 'ongoing', or 'past'
+    """
+    from datetime import datetime, timedelta
+    try:
+        event_dt = datetime.fromisoformat(event_date_str)
+        now = datetime.now()
+        
+        # Event is ongoing within 3 hours before and after start
+        if event_dt - timedelta(hours=3) <= now <= event_dt + timedelta(hours=3):
+            return 'ongoing'
+        elif now > event_dt + timedelta(hours=3):
+            return 'past'
+        else:
+            return 'upcoming'
+    except:
+        return 'upcoming'
+
+@app.route('/events')
+def events_browse():
+    """Browse all events with filtering and search"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Get filter parameters
+    category = request.args.get('category', '')
+    search = request.args.get('search', '').strip()
+    sort_by = request.args.get('sort', 'soonest')  # soonest, popular, nearest
+    
+    # Base query: only upcoming and ongoing events (exclude cancelled and past)
+    query = '''
+        SELECT e.*, u.username, u.profile_pic,
+               COUNT(DISTINCT ep.user_id) as participant_count
+        FROM events e
+        JOIN users u ON e.creator_id = u.id
+        LEFT JOIN event_participants ep ON e.id = ep.event_id
+        WHERE e.status IN ('upcoming', 'ongoing')
+    '''
+    args = []
+    
+    # Filter by category
+    if category and category in EVENT_CATEGORIES:
+        query += ' AND e.category = ?'
+        args.append(category)
+    
+    # Search by title or description
+    if search:
+        query += ' AND (e.title LIKE ? OR e.description LIKE ?)'
+        search_pattern = f'%{search}%'
+        args.extend([search_pattern, search_pattern])
+    
+    query += ' GROUP BY e.id'
+    
+    # Sorting
+    if sort_by == 'popular':
+        query += ' ORDER BY participant_count DESC, e.event_date ASC'
+    elif sort_by == 'nearest':
+        # Nearest requires user location; for now, sort by soonest
+        query += ' ORDER BY e.event_date ASC'
+    else:  # 'soonest' default
+        query += ' ORDER BY e.event_date ASC'
+    
+    events_rows = query_db(query, args)
+    
+    # Convert each sqlite3.Row to a mutable dict and enrich with computed fields
+    events = []
+    current_uid = session['user_id']
+    for er in events_rows:
+        event = dict(er)  # make a mutable dict
+        # Ensure numeric participant_count
+        try:
+            event['participant_count'] = int(event.get('participant_count') or 0)
+        except Exception:
+            event['participant_count'] = 0
+
+        is_participant = query_db(
+            'SELECT id FROM event_participants WHERE event_id = ? AND user_id = ?',
+            (event['id'], current_uid),
+            one=True
+        ) is not None
+
+        event['is_participant'] = is_participant
+        event['can_join'] = (
+            event.get('status') in ('upcoming', 'ongoing') and
+            not is_participant and
+            (event.get('max_participants') is None or event['participant_count'] < (event.get('max_participants') or 0))
+        )
+        event['status_label'] = EVENT_STATUSES.get(event.get('status'), event.get('status'))
+        event['category_label'] = EVENT_CATEGORIES.get(event.get('category'), event.get('category'))
+        events.append(event)
+
+    return render_template('events_browse.html',
+                           events=events,
+                           categories=EVENT_CATEGORIES,
+                           current_filter=category,
+                           search_query=search,
+                           sort_by=sort_by)
+
+@app.route('/events/create', methods=['GET', 'POST'])
+def create_event():
+    """Create a new event"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        event_date = request.form.get('event_date', '').strip()
+        location_name = request.form.get('location_name', '').strip()
+        city = request.form.get('city', '').strip()  # NEW: city field
+        latitude = request.form.get('latitude', '').strip()
+        longitude = request.form.get('longitude', '').strip()
+        category = request.form.get('category', '').strip()
+        max_participants = request.form.get('max_participants', '').strip()
+        is_local = request.form.get('is_local', 'on') == 'on'
+        
+        # Validation
+        errors = []
+        if not title or len(title) < 3:
+            errors.append('Title must be at least 3 characters.')
+        if not description or len(description) < 10:
+            errors.append('Description must be at least 10 characters.')
+        if not event_date:
+            errors.append('Event date/time is required.')
+        if not location_name or len(location_name) < 3:
+            errors.append('Location name is required.')
+        if not city or len(city) < 2:
+            errors.append('City is required.')
+        
+        # Coordinates are now optional
+        lat = None
+        lon = None
+        if latitude or longitude:
+            try:
+                lat = float(latitude)
+                lon = float(longitude)
+                if lat < -90 or lat > 90 or lon < -180 or lon > 180:
+                    errors.append('Invalid coordinates. Latitude: -90 to 90, Longitude: -180 to 180.')
+            except ValueError:
+                errors.append('Coordinates must be valid numbers if provided.')
+        
+        if category not in EVENT_CATEGORIES:
+            errors.append('Invalid event category.')
+        
+        max_part = None
+        if max_participants:
+            try:
+                max_part = int(max_participants)
+                if max_part <= 0:
+                    errors.append('Max participants must be positive.')
+            except ValueError:
+                errors.append('Max participants must be a number.')
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return redirect(url_for('create_event'))
+        
+        # Handle cover image upload
+        cover_image = None
+        file = request.files.get('cover_image')
+        if file and file.filename and allowed_file(file.filename):
+            fn = secure_filename(file.filename)
+            dest = os.path.join(app.config['UPLOAD_FOLDER'], f"event_{session['user_id']}_{int(datetime.now().timestamp())}_{fn}")
+            file.save(dest)
+            rel = os.path.relpath(dest, start='static').replace('\\', '/')
+            cover_image = f"/static/{rel}"
+        
+        now = datetime.now().isoformat()
+        query_db('''
+            INSERT INTO events
+            (creator_id, title, description, event_date, location_name, city, latitude, longitude, category, max_participants, cover_image, is_local, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            session['user_id'],
+            title, description, event_date, location_name, city,
+            lat, lon, category, max_part, cover_image,
+            1 if is_local else 0, 'upcoming', now, now
+        ))
+        
+        flash('Event created successfully!', 'success')
+        return redirect(url_for('events_browse'))
+    
+    return render_template('events_create.html', categories=EVENT_CATEGORIES)
+
+@app.route('/events/<int:event_id>')
+def event_detail(event_id):
+    """View detailed event information"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    event_row = query_db('''
+        SELECT e.*, u.id as creator_id, u.username as creator_username, u.profile_pic as creator_pic,
+               COUNT(DISTINCT ep.user_id) as participant_count
+        FROM events e
+        JOIN users u ON e.creator_id = u.id
+        LEFT JOIN event_participants ep ON e.id = ep.event_id
+        WHERE e.id = ?
+        GROUP BY e.id
+    ''', (event_id,), one=True)
+    
+    if not event_row:
+        flash('Event not found.', 'error')
+        return redirect(url_for('events_browse'))
+
+    # Convert to mutable dict
+    event = dict(event_row)
+
+    # Get participants with profile info
+    participants = query_db('''
+        SELECT u.id, u.username, u.profile_pic
+        FROM users u
+        JOIN event_participants ep ON u.id = ep.user_id
+        WHERE ep.event_id = ?
+        ORDER BY ep.joined_at ASC
+    ''', (event_id,))
+    
+    current_uid = session['user_id']
+    is_participant = query_db(
+        'SELECT id FROM event_participants WHERE event_id = ? AND user_id = ?',
+        (event_id, current_uid),
+        one=True
+    ) is not None
+    
+    is_creator = (event['creator_id'] == current_uid)
+    
+    # Determine if user can join
+    can_join = (
+        not is_creator and
+        not is_participant and
+        event['status'] in ('upcoming', 'ongoing') and
+        (event['max_participants'] is None or event['participant_count'] < event['max_participants'])
+    )
+    
+    can_leave = (
+        not is_creator and
+        is_participant and
+        event['status'] in ('upcoming', 'ongoing')
+    )
+    
+    event['status_label'] = EVENT_STATUSES.get(event.get('status'), event.get('status'))
+    event['category_label'] = EVENT_CATEGORIES.get(event.get('category'), event.get('category'))
+    event['is_creator'] = is_creator
+    event['is_participant'] = is_participant
+    event['can_join'] = can_join
+    event['can_leave'] = can_leave
+    event['spaces_remaining'] = None if event['max_participants'] is None else max(0, event['max_participants'] - event['participant_count'])
+    event['is_full'] = event['max_participants'] is not None and event['participant_count'] >= event['max_participants']
+    
+    return render_template('events_detail.html', event=event, participants=participants)
+
+@app.route('/events/<int:event_id>/join', methods=['POST'])
+def join_event(event_id):
+    """Join an event"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    current_uid = session['user_id']
+    event = query_db('SELECT * FROM events WHERE id = ?', (event_id,), one=True)
+    
+    if not event:
+        flash('Event not found.', 'error')
+        return redirect(url_for('events_browse'))
+    
+    # Check if already participant
+    already_joined = query_db(
+        'SELECT id FROM event_participants WHERE event_id = ? AND user_id = ?',
+        (event_id, current_uid),
+        one=True
+    )
+    
+    if already_joined:
+        flash('You are already a participant in this event.', 'info')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Check if user is creator
+    if event['creator_id'] == current_uid:
+        flash('You cannot join your own event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Check capacity
+    participant_count = query_db(
+        'SELECT COUNT(*) as c FROM event_participants WHERE event_id = ?',
+        (event_id,),
+        one=True
+    )['c']
+    
+    if event['max_participants'] and participant_count >= event['max_participants']:
+        flash('This event is full.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Check status
+    if event['status'] not in ('upcoming', 'ongoing'):
+        flash('You cannot join this event (status: ' + event['status'] + ').', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Add participant
+    now = datetime.now().isoformat()
+    query_db(
+        'INSERT INTO event_participants (event_id, user_id, joined_at) VALUES (?, ?, ?)',
+        (event_id, current_uid, now)
+    )
+    
+    flash('You have joined the event!', 'success')
+    return redirect(url_for('event_detail', event_id=event_id))
+
+@app.route('/events/<int:event_id>/leave', methods=['POST'])
+def leave_event(event_id):
+    """Leave an event"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    current_uid = session['user_id']
+    event = query_db('SELECT * FROM events WHERE id = ?', (event_id,), one=True)
+    
+    if not event:
+        flash('Event not found.', 'error')
+        return redirect(url_for('events_browse'))
+    
+    # Check if user is creator
+    if event['creator_id'] == current_uid:
+        flash('You cannot leave an event you created. Delete it instead.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+
+    # Check if user is participant
+    participant = query_db(
+        'SELECT id FROM event_participants WHERE event_id = ? AND user_id = ?',
+        (event_id, current_uid),
+        one=True
+    )
+    
+    if not participant:
+        flash('You are not a participant in this event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Check if event has started (can only leave upcoming/ongoing)
+    if event['status'] not in ('upcoming', 'ongoing'):
+        flash('Cannot leave a past or cancelled event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Remove participant
+    query_db(
+        'DELETE FROM event_participants WHERE event_id = ? AND user_id = ?',
+        (event_id, current_uid)
+    )
+    
+    flash('You have left the event.', 'success')
+    return redirect(url_for('events_browse'))
+
+@app.route('/events/<int:event_id>/edit', methods=['GET', 'POST'])
+def edit_event(event_id):
+    """Edit an event (creator only)"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    event = query_db('SELECT * FROM events WHERE id = ?', (event_id,), one=True)
+    
+    if not event:
+        flash('Event not found.', 'error')
+        return redirect(url_for('events_browse'))
+    
+    if event['creator_id'] != session['user_id']:
+        flash('Only the creator can edit this event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Cannot edit past events
+    if event['status'] == 'past':
+        flash('Cannot edit a past event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        event_date = request.form.get('event_date', '').strip()
+        location_name = request.form.get('location_name', '').strip()
+        city = request.form.get('city', '').strip()  # NEW: city field
+        latitude = request.form.get('latitude', '').strip()
+        longitude = request.form.get('longitude', '').strip()
+        max_participants = request.form.get('max_participants', '').strip()
+        
+        # Validation
+        errors = []
+        if not title or len(title) < 3:
+            errors.append('Title must be at least 3 characters.')
+        if not description or len(description) < 10:
+            errors.append('Description must be at least 10 characters.')
+        if not event_date:
+            errors.append('Event date/time is required.')
+        if not location_name or len(location_name) < 3:
+            errors.append('Location name is required.')
+        if not city or len(city) < 2:
+            errors.append('City is required.')
+        
+        # Coordinates are now optional
+        lat = None
+        lon = None
+        if latitude or longitude:
+            try:
+                lat = float(latitude)
+                lon = float(longitude)
+                if lat < -90 or lat > 90 or lon < -180 or lon > 180:
+                    errors.append('Invalid coordinates.')
+            except ValueError:
+                errors.append('Coordinates must be valid numbers if provided.')
+        
+        max_part = event['max_participants']  # Keep existing if not updated
+        if max_participants:
+            try:
+                max_part = int(max_participants)
+                if max_part <= 0:
+                    errors.append('Max participants must be positive.')
+                # Check if new limit is below current participants
+                current_count = query_db(
+                    'SELECT COUNT(*) as c FROM event_participants WHERE event_id = ?',
+                    (event_id,),
+                    one=True
+                )['c']
+                if max_part < current_count:
+                    errors.append(f'New limit ({max_part}) is below current participants ({current_count}).')
+            except ValueError:
+                errors.append('Max participants must be a number.')
+        
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return redirect(url_for('edit_event', event_id=event_id))
+        
+        # Handle cover image update
+        cover_image = event['cover_image']
+        file = request.files.get('cover_image')
+        if file and file.filename and allowed_file(file.filename):
+            fn = secure_filename(file.filename)
+            dest = os.path.join(app.config['UPLOAD_FOLDER'], f"event_{session['user_id']}_{int(datetime.now().timestamp())}_{fn}")
+            file.save(dest)
+            rel = os.path.relpath(dest, start='static').replace('\\', '/')
+            cover_image = f"/static/{rel}"
+        
+        now = datetime.now().isoformat()
+        query_db('''
+            UPDATE events
+            SET title = ?, description = ?, event_date = ?, location_name = ?,
+                city = ?, latitude = ?, longitude = ?, max_participants = ?, cover_image = ?, updated_at = ?
+            WHERE id = ?
+        ''', (title, description, event_date, location_name, city, lat, lon, max_part, cover_image, now, event_id))
+        
+        flash('Event updated successfully!', 'success')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    return render_template('events_edit.html', event=event, categories=EVENT_CATEGORIES)
+
+@app.route('/events/<int:event_id>/delete', methods=['POST'])
+def delete_event(event_id):
+    """Delete an event (creator only)"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    event = query_db('SELECT * FROM events WHERE id = ?', (event_id,), one=True)
+    
+    if not event:
+        flash('Event not found.', 'error')
+        return redirect(url_for('events_browse'))
+    
+    if event['creator_id'] != session['user_id']:
+        flash('Only the creator can delete this event.', 'error')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # Delete event (cascades to participants due to FK constraint)
+    query_db('DELETE FROM events WHERE id = ?', (event_id,))
+    
+    flash('Event deleted.', 'success')
+    return redirect(url_for('events_browse'))
+
+@app.route('/my-events')
+def my_events():
+    """View user's created and joined events"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    current_uid = session['user_id']
+    tab = request.args.get('tab', 'created')  # 'created' or 'joined'
+    
+    if tab == 'joined':
+        # Events user has joined
+        events = query_db('''
+            SELECT e.*, u.username as creator_username, u.profile_pic as creator_pic,
+                   COUNT(DISTINCT ep.user_id) as participant_count
+            FROM events e
+            JOIN users u ON e.creator_id = u.id
+            JOIN event_participants ep_user ON e.id = ep_user.event_id AND ep_user.user_id = ?
+            LEFT JOIN event_participants ep ON e.id = ep.event_id
+            GROUP BY e.id
+            ORDER BY e.event_date ASC
+        ''', (current_uid,))
+        event_type = 'joined'
+    else:  # 'created'
+        # Events user has created
+        events = query_db('''
+            SELECT e.*, u.username as creator_username, u.profile_pic as creator_pic,
+                   COUNT(DISTINCT ep.user_id) as participant_count
+            FROM events e
+            JOIN users u ON e.creator_id = u.id
+            LEFT JOIN event_participants ep ON e.id = ep.event_id
+            WHERE e.creator_id = ?
+            GROUP BY e.id
+            ORDER BY e.event_date ASC
+        ''', (current_uid,))
+        event_type = 'created'
+    
+    for event in events:
+        event['status_label'] = EVENT_STATUSES.get(event['status'], event['status'])
+        event['category_label'] = EVENT_CATEGORIES.get(event['category'], event['category'])
+    
+    return render_template('my_events.html', events=events, tab=tab, event_type=event_type)
+
 if __name__ == '__main__':
-    # Use 0.0.0.0 if you want access from other devices, otherwise default is 127.0.0.1
+    # NOTE: use debug=True for local development; remove or set False in production.
     app.run(debug=True, host='127.0.0.1', port=5000)

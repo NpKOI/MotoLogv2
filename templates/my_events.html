@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - My Events</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .tabs { display: flex; gap: 0; margin-bottom: 2rem; border-bottom: 2px solid color-mix(in srgb, var(--muted) 20%, transparent); }
+    .tab-btn { background: none; border: none; padding: 1rem 1.5rem; font-size: 1rem; font-weight: 600; color: var(--muted); cursor: pointer; position: relative; transition: color 0.2s; }
+    .tab-btn.active { color: var(--primary-600); }
+    .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+    .events-list { display: flex; flex-direction: column; gap: 1.2rem; }
+    .event-item { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow-1); border-left: 4px solid var(--primary-500); display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: center; }
+    .event-item-content h3 { margin: 0 0 0.5rem 0; font-size: 1.2rem; color: var(--text); }
+    .event-item-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.8rem; }
+    .event-item-meta span { display: flex; align-items: center; gap: 0.3rem; }
+    .event-status-badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; }
+    .event-status-badge.upcoming { background: color-mix(in srgb, var(--primary-500) 15%, transparent); color: var(--primary-600); }
+    .event-status-badge.ongoing { background: color-mix(in srgb, #10b981 15%, transparent); color: #10b981; }
+    .event-status-badge.past { background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted); }
+    .event-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+    .btn-small { padding: 0.6rem 1.2rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; }
+    .btn-small.primary { background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); color: white; }
+    .btn-small.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(86,118,240,0.2); }
+    .btn-small.secondary { background: transparent; border: 1px solid var(--primary-500); color: var(--primary-600); }
+    .btn-small.secondary:hover { background: color-mix(in srgb, var(--primary-500) 10%, transparent); }
+    .btn-small.danger { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+    .no-events { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .no-events h3 { color: var(--text); margin-bottom: 0.5rem; }
+    .participants-count { background: color-mix(in srgb, var(--primary-500) 10%, transparent); padding: 0.5rem 1rem; border-radius: 8px; color: var(--primary-600); font-weight: 600; }
+    @media (max-width: 768px) {
+      .event-item { grid-template-columns: 1fr; }
+      .event-actions { width: 100%; }
+      .btn-small { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+
+    <div style="margin-bottom: 2rem;">
+      <h1 style="margin-top: 0; margin-bottom: 0.5rem;">🏍️ My Events</h1>
+      <p style="color: var(--muted); margin: 0;">Manage events you've created or joined</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn {% if tab == 'created' %}active{% endif %}" onclick="location.href='{{ url_for('my_events', tab='created') }}'">
+        📝 Events I Created
+      </button>
+      <button class="tab-btn {% if tab == 'joined' %}active{% endif %}" onclick="location.href='{{ url_for('my_events', tab='joined') }}'">
+        ✅ Events I Joined
+      </button>
+    </div>
+
+    <!-- Events List -->
+    {% if events %}
+      <div class="events-list">
+        {% for event in events %}
+          <div class="event-item">
+            <div class="event-item-content">
+              <h3>{{ event['title'] }}</h3>
+              <div class="event-item-meta">
+                <span>📅 {{ event['event_date'] }}</span>
+                <span>📍 {{ event['location_name'] }}</span>
+                <span class="participants-count">👥 {{ event['participant_count'] }}{% if event['max_participants'] %}/{{ event['max_participants'] }}{% endif %}</span>
+              </div>
+              <div>
+                <span class="event-status-badge {{ event['status'] }}">{{ event['status_label'] }}</span>
+              </div>
+            </div>
+            <div class="event-actions">
+              <a href="{{ url_for('event_detail', event_id=event['id']) }}" class="btn-small primary">View</a>
+              {% if tab == 'created' %}
+                <a href="{{ url_for('edit_event', event_id=event['id']) }}" class="btn-small secondary">Edit</a>
+                <form method="POST" action="{{ url_for('delete_event', event_id=event['id']) }}" style="display: inline;">
+                  <button type="submit" class="btn-small danger" onclick="return confirm('Delete this event?');">Delete</button>
+                </form>
+              {% else %}
+                <form method="POST" action="{{ url_for('leave_event', event_id=event['id']) }}" style="display: inline;">
+                  <button type="submit" class="btn-small secondary" onclick="return confirm('Leave this event?');">Leave</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="no-events">
+        <h3>
+          {% if tab == 'created' %}
+            No events created yet
+          {% else %}
+            No events joined yet
+          {% endif %}
+        </h3>
+        <p>
+          {% if tab == 'created' %}
+            <a href="{{ url_for('create_event') }}" style="color: var(--primary-500); text-decoration: none; font-weight: 600;">Create your first event</a> to bring the community together!
+          {% else %}
+            <a href="{{ url_for('events_browse') }}" style="color: var(--primary-500); text-decoration: none; font-weight: 600;">Browse events</a> to find something exciting!
+          {% endif %}
+        </p>
+      </div>
+    {% endif %}
+
+  </div>
+</body>
+</html>

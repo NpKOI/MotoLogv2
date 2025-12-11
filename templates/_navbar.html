@@ -9,32 +9,34 @@
       <a class="nav-link" href="/dashboard">Dashboard</a>
       <a class="nav-link" href="/leaderboard">Leaderboard</a>
       <a class="nav-link" href="/tools">Tools</a>
+      <a href="{{ url_for('events_browse') }}" class="nav-link">🏍️ Events</a>
     </div>
   </div>
 
-  {% if session.get('user_id') %}
-    {% set u = query_db('SELECT profile_pic, username FROM users WHERE id = ?', (session['user_id'],), one=True) %}
-    <div class="nav-actions" aria-hidden="false">
-      <!-- Messages icon (paper-plane outline) -->
+  <!-- Nav Actions: always visible, contains search + theme toggle + profile (if logged in) -->
+  <div class="nav-actions" aria-hidden="false">
+    <!-- Search toggle -->
+    <button id="searchToggle" class="icon-btn" title="Search users" aria-label="Search users">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+
+    <!-- Theme toggle (sun/moon icon) — visible to all users, logged in or not -->
+    <button id="themeToggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 100 10 5 5 0 000-10z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    {% if session.get('user_id') %}
+      {% set u = query_db('SELECT profile_pic, username FROM users WHERE id = ?', (session['user_id'],), one=True) %}
+
+      <!-- Messages icon (paper-plane outline) — only logged in users -->
       <a href="/messages" id="messagesLink" class="icon-btn" title="Messages" aria-label="Messages" style="position:relative;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M22 2L11 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </svg>
       </a>
-
-      <!-- Search toggle -->
-      <button id="searchToggle" class="icon-btn" title="Search users" aria-label="Search users">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </button>
-
-      <!-- Theme toggle -->
-      <button id="themeToggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
-        <!-- sun icon shown by default; script will swap -->
-        <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 100 10 5 5 0 000-10z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
 
       <!-- Profile -->
       <div class="profile" style="position:relative;">
@@ -55,8 +57,8 @@
           <a href="/logout">Logout</a>
         </div>
       </div>
-    </div>
-  {% endif %}
+    {% endif %}
+  </div>
 </nav>
 
 <!-- Search modal -->
@@ -71,143 +73,143 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function(){
-  // Touch-device fallback: toggle profile menu on tap
-  const profileEl = document.querySelector('.profile');
-  if (profileEl) {
-    // For pointer/touch devices where :hover doesn't persist, allow tapping the profile to toggle the menu
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-      profileEl.addEventListener('click', function(e){
-        // allow regular link click to go to /profile when tapping the avatar itself
-        // but if user taps elsewhere inside .profile (not the anchor), toggle a persistent open state
-        const tgt = e.target;
-        const isAvatar = tgt.closest && tgt.closest('.profile-avatar');
-        if (isAvatar) {
-          // Let <a href="/profile"> navigate naturally.
-          return;
-        }
-        e.stopPropagation();
-        profileEl.classList.toggle('open');
-      });
-      document.addEventListener('click', function(){ profileEl.classList.remove('open'); });
-    }
-
-    // Keyboard accessibility: allow focus-within to show menu (handled by CSS :focus-within)
-  }
-
-  // Unread badge updater
-  function updateMessagesNotificationBadge() {
-    fetch('/messages/unread-count')
-      .then(response => response.json())
-      .then(data => {
-        const messagesLinks = document.querySelectorAll('a[href="/messages"]');
-        messagesLinks.forEach(link => {
-          if (data.unread_count > 0) {
-            let badge = link.querySelector('.msg-unread-badge');
-            if (!badge) {
-              badge = document.createElement('span');
-              badge.className = 'msg-unread-badge';
-              link.appendChild(badge);
-            }
-            badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
-          } else {
-            const badge = link.querySelector('.msg-unread-badge');
-            if (badge) badge.remove();
-          }
-        });
-      })
-      .catch(err => console.error('Badge update error:', err));
-  }
-  updateMessagesNotificationBadge();
-  setInterval(updateMessagesNotificationBadge, 3500);
-
-  // SEARCH modal behavior
-  const toggle = document.getElementById('searchToggle');
-  const modal = document.getElementById('navSearchModal');
-  const input = document.getElementById('navSearchInput');
-  const results = document.getElementById('navSearchResults');
-  const closeBtn = document.getElementById('navSearchClose');
-  if (toggle && modal && input && results) {
-    toggle.addEventListener('click', function(e){
-      e.preventDefault();
-      modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
-      if (modal.style.display === 'block') { input.focus(); input.select(); results.innerHTML = ''; }
-    });
-    closeBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
-    let timer = null;
-    input.addEventListener('input', function(){
-      clearTimeout(timer);
-      const q = input.value.trim();
-      if (!q) { results.innerHTML = ''; return; }
-      timer = setTimeout(() => {
-        fetch('/search/users?q=' + encodeURIComponent(q))
-          .then(r => r.json())
-          .then(data => {
-            results.innerHTML = '';
-            if (!data.users || data.users.length === 0) {
-              results.innerHTML = '<div style="padding:8px;color:var(--muted)">No users found</div>';
-              return;
-            }
-            data.users.forEach(u => {
-              const a = document.createElement('a');
-              a.href = '/user/' + u.id;
-              a.style.display = 'flex';
-              a.style.gap = '10px';
-              a.style.padding = '8px';
-              a.style.alignItems = 'center';
-              a.style.textDecoration = 'none';
-              a.style.color = 'inherit';
-              a.innerHTML = `
-                <div style="width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid color-mix(in srgb,var(--muted) 8%, transparent);">
-                  ${u.profile_pic ? `<img src="${u.profile_pic}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-500),var(--primary-600));color:white;font-weight:700">${u.username.charAt(0).toUpperCase()}</div>`}
-                </div>
-                <div style="flex:1;">
-                  <div style="font-weight:700;">${u.username}</div>
-                  <div style="color:var(--muted);font-size:0.85rem;">View profile</div>
-                </div>
-              `;
-              results.appendChild(a);
-            });
-          })
-          .catch(err => { results.innerHTML = '<div style="padding:8px;color:#c00">Search failed</div>'; });
-      }, 220);
-    });
-  }
-
-  // Theme toggle logic: defaults to light. Persist in localStorage.
-  const themeToggle = document.getElementById('themeToggle');
-  const themeIcon = document.getElementById('themeIcon');
-
-  function setTheme(isDark){
+  // Initialize theme IMMEDIATELY (before DOMContentLoaded) so it applies on page load
+  (function initTheme(){
+    const saved = localStorage.getItem('moto_theme');
+    const isDark = saved === 'dark';
     if (isDark) {
       document.body.classList.add('dark');
-      // moon icon
-      if (themeIcon) {
-        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
-      }
     } else {
       document.body.classList.remove('dark');
-      // sun icon
-      if (themeIcon) {
+    }
+  })();
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // Touch-device fallback: toggle profile menu on tap
+    const profileEl = document.querySelector('.profile');
+    if (profileEl) {
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        profileEl.addEventListener('click', function(e){
+          const tgt = e.target;
+          const isAvatar = tgt.closest && tgt.closest('.profile-avatar');
+          if (isAvatar) {
+            return;
+          }
+          e.stopPropagation();
+          profileEl.classList.toggle('open');
+        });
+        document.addEventListener('click', function(){ profileEl.classList.remove('open'); });
+      }
+    }
+
+    // Unread badge updater (only if logged in)
+    function updateMessagesNotificationBadge() {
+      const messagesLinks = document.querySelectorAll('a[href="/messages"]');
+      if (messagesLinks.length === 0) return;
+      
+      fetch('/messages/unread-count')
+        .then(response => response.json())
+        .then(data => {
+          messagesLinks.forEach(link => {
+            if (data.unread_count > 0) {
+              let badge = link.querySelector('.msg-unread-badge');
+              if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'msg-unread-badge';
+                link.appendChild(badge);
+              }
+              badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+            } else {
+              const badge = link.querySelector('.msg-unread-badge');
+              if (badge) badge.remove();
+            }
+          });
+        })
+        .catch(err => console.error('Badge update error:', err));
+    }
+    updateMessagesNotificationBadge();
+    setInterval(updateMessagesNotificationBadge, 3500);
+
+    // SEARCH modal behavior
+    const toggle = document.getElementById('searchToggle');
+    const modal = document.getElementById('navSearchModal');
+    const input = document.getElementById('navSearchInput');
+    const results = document.getElementById('navSearchResults');
+    const closeBtn = document.getElementById('navSearchClose');
+    if (toggle && modal && input && results) {
+      toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        if (modal.style.display === 'block') { input.focus(); input.select(); results.innerHTML = ''; }
+      });
+      closeBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
+      let timer = null;
+      input.addEventListener('input', function(){
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (!q) { results.innerHTML = ''; return; }
+        timer = setTimeout(() => {
+          fetch('/search/users?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+              results.innerHTML = '';
+              if (!data.users || data.users.length === 0) {
+                results.innerHTML = '<div style="padding:8px;color:var(--muted)">No users found</div>';
+                return;
+              }
+              data.users.forEach(u => {
+                const a = document.createElement('a');
+                a.href = '/user/' + u.id;
+                a.style.display = 'flex';
+                a.style.gap = '10px';
+                a.style.padding = '8px';
+                a.style.alignItems = 'center';
+                a.style.textDecoration = 'none';
+                a.style.color = 'inherit';
+                a.innerHTML = `
+                  <div style="width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;border:1px solid color-mix(in srgb,var(--muted) 8%, transparent);">
+                    ${u.profile_pic ? `<img src="${u.profile_pic}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-500),var(--primary-600));color:white;font-weight:700">${u.username.charAt(0).toUpperCase()}</div>`}
+                  </div>
+                  <div style="flex:1;">
+                    <div style="font-weight:700;">${u.username}</div>
+                    <div style="color:var(--muted);font-size:0.85rem;">View profile</div>
+                  </div>
+                `;
+                results.appendChild(a);
+              });
+            })
+            .catch(err => { results.innerHTML = '<div style="padding:8px;color:#c00">Search failed</div>'; });
+        }, 220);
+      });
+    }
+
+    // Theme toggle logic
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function setThemeIcon(isDark){
+      if (!themeIcon) return;
+      if (isDark) {
+        // moon icon
+        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+      } else {
+        // sun icon
         themeIcon.innerHTML = '<path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 100 10 5 5 0 000-10z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
       }
     }
-  }
 
-  // init theme
-  const saved = localStorage.getItem('moto_theme');
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = saved ? (saved === 'dark') : false;
-  setTheme(isDark || (saved === null && prefersDark));
+    // Set icon based on current theme
+    const isDark = document.body.classList.contains('dark');
+    setThemeIcon(isDark);
 
-  // Attach click listener
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function(e){
-      e.preventDefault();
-      const nowDark = document.body.classList.toggle('dark');
-      localStorage.setItem('moto_theme', nowDark ? 'dark' : 'light');
-      setTheme(nowDark);
-    });
-  }
-});
+    // Attach click listener to toggle
+    if (themeToggle) {
+      themeToggle.addEventListener('click', function(e){
+        e.preventDefault();
+        const nowDark = document.body.classList.toggle('dark');
+        localStorage.setItem('moto_theme', nowDark ? 'dark' : 'light');
+        setThemeIcon(nowDark);
+      });
+    }
+  });
 </script>

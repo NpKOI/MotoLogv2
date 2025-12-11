@@ -1,5 +1,5 @@
-﻿/* ===========================
-MotoLogv2 вЂ” Modern UI Theme (fixed)
+/* ===========================
+MotoLogv2 — Modern UI Theme (fixed)
 
 Light theme by default
 Add .dark to <body> to enable dark theme
@@ -20,10 +20,6 @@ Dark-mode contrast & font fixes included
 --accent: #f5576c;
 --glass: rgba(255,255,255,0.6);
 
---input-bg: transparent;
---muted-border: rgba(15,23,36,0.06);
---input-bg: transparent;
---muted-border: rgba(15,23,36,0.06);
 /* neutrals */
 --n-100: #ffffff;
 --n-200: #f7f9fc;
@@ -62,10 +58,6 @@ body.dark {
 --accent: #ff6b7a;
 --glass: rgba(255,255,255,0.04);
 
---input-bg: rgba(255,255,255,0.02);
---muted-border: rgba(255,255,255,0.04);
---input-bg: rgba(255,255,255,0.02);
---muted-border: rgba(255,255,255,0.04);
 --n-100: rgba(255,255,255,0.03);
 --n-200: rgba(255,255,255,0.02);
 --n-300: rgba(255,255,255,0.025);
@@ -516,7 +508,7 @@ body.dark .dashboard-container a:not(.nav-link):not(.action-btn):not(.btn) {
   color: var(--primary-600);
 }
 
-/* 6) Special: conversation/message bubbles вЂ” ensure text contrast */
+/* 6) Special: conversation/message bubbles — ensure text contrast */
 body.dark .message.received { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.03)) !important; color: var(--text) !important; border: 1px solid rgba(255,255,255,0.03) !important; }
 body.dark .message.sent { box-shadow: 0 8px 22px rgba(75,106,245,0.14) !important; }
 
@@ -693,13 +685,180 @@ body.dark .form-card, body.dark .custom-tags-input, body.dark .tags-grid, body.d
   color: var(--text);
 }
 
-/* ===========================
-MotoLogv2 вЂ” Modern UI Theme (fixed)
+/* ========== EVENTS SYSTEM ========== */
 
-Light theme by default
-Add .dark to <body> to enable dark theme
-Uses CSS variables for easy adjustments
-Dark-mode contrast & font fixes included
-=========================== */
-/* Google Fonts */
+.event-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  transition: all 0.2s var(--ease);
+  border-left: 4px solid var(--primary-500);
+}
 
+.event-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+}
+
+.event-card-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-badge.upcoming {
+  background: color-mix(in srgb, var(--primary-500) 15%, transparent);
+  color: var(--primary-600);
+}
+
+.status-badge.ongoing {
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+}
+
+.status-badge.past {
+  background: color-mix(in srgb, var(--muted) 15%, transparent);
+  color: var(--muted);
+}
+
+.status-badge.cancelled {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+.event-info-card {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
+  border-left: 2px solid var(--primary-500);
+}
+
+.event-info-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.event-info-value {
+  font-size: 1.1rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.participant-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  overflow: hidden;
+  border: 2px solid var(--card-bg);
+}
+
+.participant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.creator-card {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-500) 5%, transparent), color-mix(in srgb, var(--primary-600) 5%, transparent));
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 4px solid var(--primary-500);
+}
+
+.creator-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--primary-500);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.creator-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Form styling for event creation/editing */
+.form-section {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-1);
+  border-left: 4px solid var(--primary-500);
+}
+
+.form-section h3 {
+  margin: 0 0 1rem 0;
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.coordinates-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.map-note {
+  background: color-mix(in srgb, var(--primary-500) 10%, transparent);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-500);
+  margin-bottom: 1.5rem;
+}
+
+.map-note p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+/* Dark mode - Form inputs in events */
+body.dark input[type="text"],
+body.dark input[type="number"],
+body.dark input[type="datetime-local"],
+body.dark input[type="date"],
+body.dark textarea,
+body.dark select {
+  background: var(--input-bg);
+  border-color: var(--muted-border);
+  color: var(--text);
+}
+
+body.dark input:focus,
+body.dark textarea:focus,
+body.dark select:focus {
+  border-color: var(--primary-500);
+}

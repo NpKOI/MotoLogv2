@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - Events & Meetups</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .events-header { margin-bottom: 2rem; }
+    .events-header h1 { font-size: 2rem; margin: 0 0 0.5rem 0; }
+    .events-controls { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; }
+    .search-box { flex: 1; min-width: 250px; display: flex; gap: 0.5rem; }
+    .search-box input { flex: 1; padding: 0.7rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); border-radius: 8px; background: transparent; color: var(--text); }
+    .search-box input:focus { outline: none; border-color: var(--primary-500); }
+    .filter-group { display: flex; gap: 0.5rem; }
+    .filter-group select { padding: 0.7rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); border-radius: 8px; background: transparent; color: var(--text); font-weight: 500; }
+    .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+    .event-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-1); transition: all 0.2s var(--ease); cursor: pointer; border-left: 4px solid var(--primary-500); display: flex; flex-direction: column; }
+    .event-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); }
+    .event-card-image { width: 100%; height: 200px; object-fit: cover; background: linear-gradient(135deg, var(--primary-500), var(--primary-600)); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+    .event-card-content { padding: 1.2rem; flex: 1; display: flex; flex-direction: column; }
+    .event-card-category { display: inline-block; font-size: 0.75rem; font-weight: 700; color: var(--primary-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+    .event-card-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; color: var(--text); }
+    .event-card-location { font-size: 0.85rem; color: var(--muted); margin: 0.3rem 0; }
+    .event-card-datetime { font-size: 0.85rem; color: var(--muted); margin: 0.3rem 0; }
+    .event-card-participants { font-size: 0.85rem; color: var(--primary-600); font-weight: 600; margin-top: 0.8rem; }
+    .event-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 1rem; border-top: 1px solid color-mix(in srgb, var(--muted) 10%, transparent); }
+    .event-status { font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 6px; background: color-mix(in srgb, var(--primary-500) 15%, transparent); color: var(--primary-600); }
+    .event-status.full { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+    .event-status.ongoing { background: color-mix(in srgb, #10b981 15%, transparent); color: #10b981; }
+    .btn-create { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.9rem 1.8rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-create:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(16,185,129,0.3); }
+    .no-events { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .no-events h3 { color: var(--text); margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    
+    <div class="events-header">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1>🏍️ Events & Meetups</h1>
+        <a href="{{ url_for('create_event') }}" class="btn-create">+ Create Event</a>
+      </div>
+      <p style="color: var(--muted); margin: 0;">Join community rides, meetups, and events with fellow motorcyclists</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Search & Filters -->
+    <div class="events-controls">
+      <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; width: 100%; align-items: center;">
+        <div class="search-box">
+          <input type="text" name="search" placeholder="Search events by title or location..." value="{{ search_query }}">
+          <button type="submit" class="btn" style="padding: 0.7rem 1.5rem;">Search</button>
+        </div>
+        
+        <div class="filter-group">
+          <!-- Global/Local Toggle with better styling -->
+          <div style="display: flex; gap: 0.3rem; background: color-mix(in srgb, var(--muted) 10%, transparent); border-radius: 8px; padding: 0.3rem;">
+            <a href="?scope=local&category={{ current_filter }}&search={{ search_query }}" 
+               style="padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s; {% if event_scope == 'local' %}background: var(--primary-500); color: white;{% else %}color: var(--text);{% endif %}">
+              📍 Local
+            </a>
+            <a href="?scope=global&category={{ current_filter }}&search={{ search_query }}" 
+               style="padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s; {% if event_scope == 'global' %}background: var(--primary-500); color: white;{% else %}color: var(--text);{% endif %}">
+              🌍 Global
+            </a>
+          </div>
+
+          <!-- City Filter (only shows cities for current scope) -->
+          <select name="city" onchange="this.form.submit()" style="padding: 0.7rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); border-radius: 8px; background: transparent; color: var(--text); font-weight: 500;">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+              <option value="{{ c }}" {% if city_filter == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="category" onchange="this.form.submit()" style="padding: 0.7rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); border-radius: 8px; background: transparent; color: var(--text); font-weight: 500;">
+            <option value="">All Categories</option>
+            {% for cat_key, cat_label in categories.items() %}
+              <option value="{{ cat_key }}" {% if current_filter == cat_key %}selected{% endif %}>{{ cat_label }}</option>
+            {% endfor %}
+          </select>
+          
+          <select name="sort" onchange="this.form.submit()" style="padding: 0.7rem; border: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); border-radius: 8px; background: transparent; color: var(--text); font-weight: 500;">
+            <option value="soonest" {% if sort_by == 'soonest' %}selected{% endif %}>Soonest</option>
+            <option value="popular" {% if sort_by == 'popular' %}selected{% endif %}>Most Popular</option>
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <!-- Events Grid -->
+    {% if events %}
+      <div class="events-grid">
+        {% for event in events %}
+          <a href="{{ url_for('event_detail', event_id=event['id']) }}" style="text-decoration: none; color: inherit;">
+            <div class="event-card">
+              {% if event['cover_image'] %}
+                <img src="{{ event['cover_image'] }}" alt="{{ event['title'] }}" class="event-card-image">
+              {% else %}
+                <div class="event-card-image">{{ event['category_label'][0] }}</div>
+              {% endif %}
+              
+              <div class="event-card-content">
+                <span class="event-card-category">{{ event['category_label'].split(' ', 1)[1] if ' ' in event['category_label'] else event['category_label'] }}</span>
+                <h3 class="event-card-title">{{ event['title'][:40] }}{% if event['title']|length > 40 %}...{% endif %}</h3>
+                <p class="event-card-location">📍 {{ event['location_name'][:35] }}{% if event['location_name']|length > 35 %}...{% endif %}</p>
+                <p class="event-card-datetime">📅 {{ event['event_date'] }}</p>
+                
+                <div class="event-card-footer">
+                  <span class="event-card-participants">
+                    👥 {{ event['participant_count'] }}{% if event['max_participants'] %}/{{ event['max_participants'] }}{% endif %}
+                  </span>
+                  {% if event['is_full'] %}
+                    <span class="event-status full">FULL</span>
+                  {% elif event['status'] == 'ongoing' %}
+                    <span class="event-status ongoing">LIVE</span>
+                  {% else %}
+                    <span class="event-status">{{ event['status_label'].split(' ', 1)[1] if ' ' in event['status_label'] else event['status_label'] }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="no-events">
+        <h3>No events found</h3>
+        <p>Try adjusting your filters or <a href="{{ url_for('create_event') }}" style="color: var(--primary-500); text-decoration: none; font-weight: 600;">create the first event</a>!</p>
+      </div>
+    {% endif %}
+
+    <!-- Join/Leave Buttons (moved outside the loop for better structure) -->
+    {% for event in events %}
+      <div style="padding: 1rem; border-top: 1px solid color-mix(in srgb, var(--muted) 10%, transparent); display: flex; gap: 0.5rem;">
+        {% if not event['is_participant'] and event['can_join'] %}
+          <form method="POST" action="{{ url_for('join_event', event_id=event['id']) }}" style="flex: 1;">
+            <button type="submit" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.6rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">✅ Join</button>
+          </form>
+        {% elif event['is_participant'] %}
+          <form method="POST" action="{{ url_for('leave_event', event_id=event['id']) }}" style="flex: 1;">
+            <button type="submit" style="width: 100%; background: transparent; border: 1px solid var(--primary-600); color: var(--primary-600); padding: 0.6rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;">❌ Leave</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+  </div>
+</body>
+</html>

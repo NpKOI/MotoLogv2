@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 def init_db():
     conn = sqlite3.connect('moto_log.db')
@@ -10,6 +11,8 @@ def init_db():
     c.execute('DROP TABLE IF EXISTS bikes')
     c.execute('DROP TABLE IF EXISTS maintenance')
     c.execute('DROP TABLE IF EXISTS users')
+    c.execute('DROP TABLE IF EXISTS events')
+    c.execute('DROP TABLE IF EXISTS event_participants')
 
     # Users table with profile and emergency fields
     c.execute('''
@@ -79,6 +82,40 @@ def init_db():
             tags TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (bike_id) REFERENCES bikes (id)
+        )
+    ''')
+
+    # Events table - core event information
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            creator_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            event_date TEXT NOT NULL,
+            location_name TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            category TEXT NOT NULL,
+            max_participants INTEGER,
+            cover_image TEXT,
+            status TEXT DEFAULT 'upcoming',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (creator_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    ''')
+
+    # Event participants junction table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS event_participants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            joined_at TEXT NOT NULL,
+            UNIQUE(event_id, user_id),
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
     ''')
 
