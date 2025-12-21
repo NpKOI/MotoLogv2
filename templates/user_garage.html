@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <style>
     .garage-header {
-      background: white;
+      background: var(--card-bg);
       padding: 2rem;
       border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-1);
       margin-bottom: 2rem;
       display: flex;
       justify-content: space-between;
@@ -20,7 +20,7 @@
     .garage-title {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #333;
+      color: var(--text);
     }
 
     .bike-grid {
@@ -30,23 +30,24 @@
     }
 
     .bike-card {
-      background: white;
+      background: var(--card-bg);
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-1);
       transition: all 0.3s ease;
+      cursor: pointer;
     }
 
     .bike-card:hover {
       transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(102,126,234,0.2);
+      box-shadow: var(--shadow-2);
     }
 
     .bike-image {
       width: 100%;
       height: 200px;
       object-fit: cover;
-      background: #f0f2f5;
+      background: var(--n-200);
     }
 
     .bike-info {
@@ -56,12 +57,12 @@
     .bike-name {
       font-size: 1.2rem;
       font-weight: 700;
-      color: #333;
+      color: var(--text);
       margin-bottom: 0.5rem;
     }
 
     .bike-model {
-      color: #666;
+      color: var(--muted);
       font-size: 0.95rem;
       margin-bottom: 0.75rem;
     }
@@ -74,26 +75,26 @@
 
     .bike-stat {
       font-size: 0.9rem;
-      color: #555;
+      color: var(--muted);
     }
 
     .bike-stat strong {
-      color: #667eea;
+      color: var(--primary-500);
     }
 
     .bike-notes {
-      color: #666;
+      color: var(--muted);
       font-size: 0.9rem;
       line-height: 1.5;
       margin-top: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid #e0e0e0;
+      border-top: 1px solid var(--n-300);
     }
 
     .empty-garage {
       text-align: center;
       padding: 3rem 1rem;
-      color: #999;
+      color: var(--muted);
     }
 
     .empty-garage-icon {
@@ -109,7 +110,7 @@
     <div class="garage-header">
       <div>
         <h1 class="garage-title">🏍️ {{ user['username'] }}'s Garage</h1>
-        <p style="color:#666; margin-top:0.5rem;">{{ bikes|length }} bike{{ 's' if bikes|length != 1 else '' }}</p>
+        <p style="color:var(--muted); margin-top:0.5rem;">{{ bikes|length }} bike{{ 's' if bikes|length != 1 else '' }}</p>
       </div>
     </div>
 
@@ -117,11 +118,11 @@
       <div class="bike-grid">
         {% for bike in bikes %}
           <div class="bike-card">
-            <div style="background: #f0f2f5; height: 200px; overflow: hidden;">
+            <div style="background: var(--n-200); height: 200px; overflow: hidden; cursor: pointer; border-radius: 12px 12px 0 0;" onclick="window.location.href='/bike/{{ bike['id'] }}'">
               {% if bike['image'] %}
                 <img src="{{ bike['image'] }}" alt="{{ bike['name'] }}" class="bike-image">
               {% else %}
-                <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#999; font-size:3rem;">🏍️</div>
+                <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:3rem;">🏍️</div>
               {% endif %}
             </div>
 
@@ -142,9 +143,11 @@
                 <div class="bike-notes">{{ bike['notes'] }}</div>
               {% endif %}
 
-              <div style="margin-top: 1rem;">
-                <a href="/bike/{{ bike['id'] }}/maintenance" class="btn" style="display: inline-block; padding: 8px 12px; font-size: 0.9rem;">View Maintenance</a>
+              {% if session.get('user_id') and session.get('user_id') == user.id %}
+              <div style="margin-top: 1rem; display: flex; gap: 8px;">
+                <button onclick="window.location.href='/edit-bike/{{ bike['id'] }}'" class="btn" style="flex: 1; padding: 8px 12px; font-size: 0.9rem; background: var(--primary-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer;">Edit</button>
               </div>
+              {% endif %}
             </div>
           </div>
         {% endfor %}

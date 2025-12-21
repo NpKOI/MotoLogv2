@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ bike['name'] }} - {{ user['username'] }}'s Garage</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    .bike-header {
+      background: var(--card-bg);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-1);
+      margin-bottom: var(--space-lg);
+      display: flex;
+      gap: var(--space-lg);
+      align-items: start;
+    }
+    
+    @media (max-width: 768px) {
+      .bike-header {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .bike-image {
+        align-self: center;
+      }
+    }
+    
+    .bike-image {
+      width: 200px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      background: var(--n-200);
+    }
+    
+    .bike-info h1 {
+      color: var(--text);
+      margin: 0 0 var(--space-sm) 0;
+      font-size: 28px;
+    }
+    
+    .bike-meta {
+      color: var(--muted);
+      margin-bottom: var(--space-md);
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--n-300);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .tab {
+      padding: var(--space-md) var(--space-lg);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    
+    .tab.active {
+      color: var(--primary-500);
+      border-bottom-color: var(--primary-500);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .rides-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    .ride-card {
+      background: var(--card-bg);
+      border: 1px solid var(--n-300);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-1);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    .ride-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-2);
+    }
+    
+    .ride-title {
+      font-weight: bold;
+      color: var(--text);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .ride-date {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    
+    .maintenance-list {
+      display: grid;
+      gap: var(--space-md);
+    }
+    
+    .maintenance-item {
+      background: var(--card-bg);
+      border: 1px solid var(--n-300);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-1);
+    }
+    
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-md);
+    }
+    
+    .photo-item {
+      background: var(--card-bg);
+      border: 1px solid var(--n-300);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-1);
+    }
+    
+    .photo-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    
+    <div style="padding: var(--space-lg);">
+      <div class="bike-header">
+        {% if bike['image'] %}
+        <img src="{{ bike['image'] }}" alt="{{ bike['name'] }}" class="bike-image">
+        {% else %}
+        <div class="bike-image" style="display: flex; align-items: center; justify-content: center; background: var(--n-200); color: var(--muted);">
+          🏍️
+        </div>
+        {% endif %}
+        
+        <div class="bike-info">
+          <h1>{{ bike['name'] }}</h1>
+          <div class="bike-meta">
+            {% if bike['make_model'] %}
+            <div>{{ bike['make_model'] }}</div>
+            {% endif %}
+            {% if bike['year'] %}
+            <div>Year: {{ bike['year'] }}</div>
+            {% endif %}
+            {% if bike['odo'] %}
+            <div>Odometer: {{ bike['odo'] }} km</div>
+            {% endif %}
+          </div>
+          <div style="color: var(--muted); font-size: 14px;">
+            Owned by <a href="/user/{{ user['id'] }}" style="color: var(--primary-500); text-decoration: none;">{{ user['username'] }}</a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="tabs">
+        <div class="tab active" onclick="showTab('rides')">Rides ({{ rides|length }})</div>
+        <div class="tab" onclick="showTab('maintenance')">Maintenance ({{ maintenance|length }})</div>
+        <div class="tab" onclick="showTab('photos')">Photos ({{ photos|length }})</div>
+      </div>
+      
+      <div id="rides" class="tab-content active">
+        {% if rides %}
+        <div class="rides-grid">
+          {% for ride in rides %}
+          <div class="ride-card" onclick="window.location.href='/ride/{{ ride.id }}'">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-sm);">
+              <div class="ride-title">{{ ride.title or 'Untitled Ride' }}</div>
+              <div style="font-size: 12px; color: var(--muted);">{{ ride.formatted_date }}</div>
+            </div>
+            
+            {% if ride.description %}
+            <div style="color: var(--muted); font-size: 14px; margin-bottom: var(--space-sm);">{{ ride.description[:80] }}{% if ride.description|length > 80 %}...{% endif %}</div>
+            {% endif %}
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+              <div style="font-size: 14px; color: var(--text);">
+                <strong>{{ ride.distance }} km</strong> • {{ ride.time }}h
+              </div>
+              <div style="font-size: 12px; color: var(--muted);">
+                {{ ride.avg_speed|round(1) }} km/h avg
+              </div>
+            </div>
+            
+            <!-- Small map preview -->
+            <div style="width: 100%; height: 80px; background: var(--n-200); border-radius: 4px; overflow: hidden; position: relative;">
+              {% if ride.gps_points and ride.gps_points|length > 1 %}
+                <div id="map-preview-{{ ride.id }}" style="width: 100%; height: 80px; position: relative;"></div>
+              {% else %}
+                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px;">
+                  🗺️ No route data
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px; background: var(--card-bg); border-radius: var(--radius-md); box-shadow: var(--shadow-1);">
+          <div style="color: var(--muted); font-size: 18px;">No rides with this bike yet</div>
+        </div>
+        {% endif %}
+      </div>
+      
+      <div id="maintenance" class="tab-content">
+        {% if maintenance %}
+        <div class="maintenance-list">
+          {% for item in maintenance %}
+          <div class="maintenance-item">
+            <div style="font-weight: bold; color: var(--text); margin-bottom: var(--space-sm);">{{ item['item'] }}</div>
+            {% if item['date'] %}
+            <div style="color: var(--muted); font-size: 14px; margin-bottom: var(--space-sm);">Date: {{ item['date'] }}</div>
+            {% endif %}
+            {% if item['notes'] %}
+            <div style="color: var(--text);">{{ item['notes'] }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px; background: var(--card-bg); border-radius: var(--radius-md); box-shadow: var(--shadow-1);">
+          <div style="color: var(--muted); font-size: 18px;">No maintenance records</div>
+        </div>
+        {% endif %}
+      </div>
+      
+      <div id="photos" class="tab-content">
+        {% if photos %}
+        <div class="photos-grid">
+          {% for photo in photos %}
+          <div class="photo-item">
+            <img src="{{ photo['url'] }}" alt="Bike photo">
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px; background: var(--card-bg); border-radius: var(--radius-md); box-shadow: var(--shadow-1);">
+          <div style="color: var(--muted); font-size: 18px;">No photos uploaded</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showTab(tabName) {
+      // Hide all tab contents
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      // Remove active class from all tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Show selected tab content
+      document.getElementById(tabName).classList.add('active');
+      
+      // Add active class to clicked tab
+      event.target.classList.add('active');
+    }
+    
+    // Set default tab based on URL parameter or default to rides
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      const defaultTab = tabParam || 'rides';
+      showTab(defaultTab);
+      
+      // Initialize small maps for ride previews
+      {% for ride in rides %}
+        {% if ride.gps_points and ride.gps_points|length > 1 %}
+          initRidePreviewMap({{ ride.id }}, {{ ride.gps_points|tojson }});
+        {% endif %}
+      {% endfor %}
+    });
+    
+    function initRidePreviewMap(rideId, gpsPoints) {
+      const mapElement = document.getElementById('map-preview-' + rideId);
+      if (!mapElement || !gpsPoints || gpsPoints.length < 2) return;
+      
+      // Validate GPS points
+      const validPoints = gpsPoints.filter(point => 
+        point && typeof point.latitude === 'number' && typeof point.longitude === 'number' &&
+        point.latitude >= -90 && point.latitude <= 90 &&
+        point.longitude >= -180 && point.longitude <= 180
+      );
+      
+      if (validPoints.length < 2) {
+        mapElement.innerHTML = '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 10px;">Invalid route data</div>';
+        return;
+      }
+      
+      // Create small map
+      const map = L.map(mapElement, {
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        dragging: false,
+        touchZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        preferCanvas: true
+      }).setView([validPoints[0].latitude, validPoints[0].longitude], 13);
+      
+      // Add tile layer - use a reliable tile provider
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
+        minZoom: 1
+      }).addTo(map);
+      
+      // Add route polyline
+      const routeCoords = validPoints.map(point => [point.latitude, point.longitude]);
+      L.polyline(routeCoords, {
+        color: 'var(--primary-500)',
+        weight: 3,
+        opacity: 0.8
+      }).addTo(map);
+      
+      // Fit map to route bounds
+      if (routeCoords.length > 1) {
+        map.fitBounds(routeCoords);
+      }
+    }
+  </script>
+</body>
+</html></content>
+<parameter name="filePath">d:\MotoLogV2\MotoLogv2\templates\view_bike.html

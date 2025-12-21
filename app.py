@@ -5,6 +5,7 @@ import sqlite3
 import os
 import urllib.parse, urllib.request, json
 from datetime import datetime, timedelta
+import time
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET', 'dev_secret')
@@ -512,8 +513,8 @@ def user_profile(user_id):
         return redirect(url_for('leaderboard'))
     
     # Stats
-    total_rides = query_db('SELECT COUNT(*) as c FROM rides WHERE user_id = ? AND is_private = 0', (user_id,), one=True)['c']
-    total_distance = query_db('SELECT COALESCE(SUM(distance), 0) as d FROM rides WHERE user_id = ? AND is_private = 0', (user_id,), one=True)['d']
+    total_rides = query_db('SELECT COUNT(*) as c FROM rides WHERE user_id = ? AND public = 1', (user_id,), one=True)['c']
+    total_distance = query_db('SELECT COALESCE(SUM(distance), 0) as d FROM rides WHERE user_id = ? AND public = 1', (user_id,), one=True)['d']
     
     # Followers / Following
     followers = query_db('''
@@ -532,14 +533,35 @@ def user_profile(user_id):
         ORDER BY f.created_at DESC
     ''', (user_id,))
     
-    # Public rides
-    raw_rides = query_db('SELECT * FROM rides WHERE user_id = ? AND is_private = 0 ORDER BY date DESC LIMIT 10', (user_id,))
+    # Public rides - show all rides for own profile, only public for others
+    current_user_id = session.get('user_id')
+    if current_user_id and current_user_id == user_id:
+        # Own profile - show all rides
+        raw_rides = query_db('SELECT * FROM rides WHERE user_id = ? ORDER BY date DESC LIMIT 10', (user_id,))
+    else:
+        # Other user's profile - show only public rides
+        raw_rides = query_db('SELECT * FROM rides WHERE user_id = ? AND public = 1 ORDER BY date DESC LIMIT 10', (user_id,))
     rides = []
     for r in raw_rides:
         groups, flat = categorize_tags(r['tags'])
         row = dict(r)
         row['tag_groups'] = groups
         row['tag_list'] = flat
+        
+        # Format the date
+        if row['date']:
+            try:
+                from datetime import datetime
+                if 'T' in str(row['date']):
+                    dt = datetime.fromisoformat(str(row['date']).replace('Z', '+00:00'))
+                    row['formatted_date'] = dt.strftime('%B %d, %Y')
+                else:
+                    row['formatted_date'] = str(row['date'])
+            except:
+                row['formatted_date'] = str(row['date'])
+        else:
+            row['formatted_date'] = 'Unknown'
+        
         rides.append(row)
 
     # Check if current user follows this user
@@ -618,11 +640,86 @@ def edit_bike(bike_id):
             rel = os.path.relpath(dest, start='static').replace('\\','/')
             image_path = f"/static/{rel}"
 
-        query_db('UPDATE bikes SET name=?, make_model=?, year=?, odo=?, image=?, notes=?, is_private=? WHERE id=?',
-                 (name, make_model, year, odo, image_path, notes, is_private, bike_id))
+        # Handle additional photos
+        additional_photos = []
+        photos_files = request.files.getlist('bike_photos')
+        for photo_file in photos_files:
+            if photo_file and photo_file.filename and allowed_file(photo_file.filename):
+                fn = secure_filename(photo_file.filename)
+                dest = os.path.join(app.config['UPLOAD_FOLDER'], f"bike_{session['user_id']}_photo_{len(additional_photos)}_{fn}")
+                photo_file.save(dest)
+                rel = os.path.relpath(dest, start='static').replace('\\','/')
+                additional_photos.append(f"/static/{rel}")
+
+        # Store additional photos as JSON
+        import json
+        additional_photos_json = json.dumps(additional_photos) if additional_photos else bike.get('additional_photos', '[]')
+
+        query_db('UPDATE bikes SET name=?, make_model=?, year=?, odo=?, image=?, notes=?, is_private=?, additional_photos=? WHERE id=?',
+                 (name, make_model, year, odo, image_path, notes, is_private, additional_photos_json, bike_id))
         flash('Bike updated.', 'success')
         return redirect(url_for('bikes'))
-    return render_template('edit_bike.html', bike=bike)
+    return render_template('edit_bike.html', bike=dict(bike))
+
+@app.route('/bike/<int:bike_id>')
+def view_bike(bike_id):
+    bike = query_db('SELECT * FROM bikes WHERE id = ?', (bike_id,), one=True)
+    if not bike:
+        flash('Bike not found.', 'error')
+        return redirect(url_for('leaderboard'))
+    
+    # Get the bike owner
+    user = query_db('SELECT * FROM users WHERE id = ?', (bike['user_id'],), one=True)
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('leaderboard'))
+    
+    # Get rides for this bike
+    rides = query_db('SELECT * FROM rides WHERE bike_id = ? ORDER BY date DESC', (bike_id,))
+    rides_list = []
+    for ride in rides:
+        ride_dict = dict(ride)
+        # Format date
+        if ride_dict['date']:
+            try:
+                from datetime import datetime
+                if 'T' in str(ride_dict['date']):
+                    dt = datetime.fromisoformat(str(ride_dict['date']).replace('Z', '+00:00'))
+                    ride_dict['formatted_date'] = dt.strftime('%B %d, %Y')
+                else:
+                    ride_dict['formatted_date'] = str(ride_dict['date'])
+            except:
+                ride_dict['formatted_date'] = str(ride_dict['date'])
+        else:
+            ride_dict['formatted_date'] = 'Unknown'
+        
+        # Get GPS points for map preview
+        gps_points = query_db(
+            'SELECT latitude, longitude, timestamp FROM gps_points WHERE ride_id = ? ORDER BY timestamp',
+            (ride_dict['id'],)
+        )
+        ride_dict['gps_points'] = [dict(point) for point in gps_points] if gps_points else []
+        
+        rides_list.append(ride_dict)
+    
+    # Get maintenance records
+    maintenance = query_db('SELECT * FROM bike_maintenance WHERE bike_id = ? ORDER BY date DESC', (bike_id,))
+    
+    # Get bike photos
+    photos = []
+    if bike['image']:
+        photos.append({'url': bike['image'], 'type': 'cover'})
+    
+    # Get additional photos
+    try:
+        import json
+        additional_photos = json.loads(bike.get('additional_photos', '[]'))
+        for photo_url in additional_photos:
+            photos.append({'url': photo_url, 'type': 'additional'})
+    except:
+        pass
+    
+    return render_template('view_bike.html', bike=bike, user=user, rides=rides_list, maintenance=maintenance, photos=photos)
 
 # View user's public garage
 @app.route('/user/<int:user_id>/garage')
@@ -632,8 +729,8 @@ def user_garage(user_id):
         flash('User not found.', 'error')
         return redirect(url_for('leaderboard'))
     
-    # Get public bikes only
-    bikes = query_db('SELECT * FROM bikes WHERE user_id = ? AND is_private = 0 ORDER BY name', (user_id,))
+    # Get all bikes for this user (no private filtering for now)
+    bikes = query_db('SELECT * FROM bikes WHERE user_id = ? ORDER BY name', (user_id,))
     
     return render_template('user_garage.html', user=user, bikes=bikes)
 
@@ -1266,7 +1363,7 @@ def leaderboard():
         SELECT u.id, u.username, u.country, u.profile_pic,
                COALESCE(SUM(r.distance), 0) AS total_distance
         FROM users u
-        LEFT JOIN rides r ON r.user_id = u.id
+        LEFT JOIN rides r ON r.user_id = u.id AND r.public = 1
         GROUP BY u.id
         ORDER BY total_distance DESC
         LIMIT 50
@@ -1275,7 +1372,7 @@ def leaderboard():
         SELECT u.id, u.username, u.country, u.profile_pic,
                COALESCE(SUM(r.distance), 0) AS total_distance
         FROM users u
-        LEFT JOIN rides r ON r.user_id = u.id
+        LEFT JOIN rides r ON r.user_id = u.id AND r.public = 1
         WHERE u.country = ?
         GROUP BY u.id
         ORDER BY total_distance DESC
@@ -2631,6 +2728,82 @@ def ride_history():
     
     return render_template('ride_history.html', rides_list=rides_list, total_distance=total_distance, shared_count=shared_count)
 
+@app.route('/ride/<int:ride_id>')
+def view_ride(ride_id):
+    user_id = session.get('user_id')
+    
+    # Get the ride details - allow viewing public rides from any user
+    ride = query_db(
+        '''SELECT id, title, description, date, distance, time, avg_speed, top_speed, public, bike_id, user_id, photos
+           FROM rides 
+           WHERE id = ?''',
+        (ride_id,), one=True
+    )
+    
+    if not ride:
+        flash('Ride not found.', 'error')
+        return redirect(url_for('leaderboard'))
+    
+    # Check if user can view this ride
+    if ride['public'] == 0 and (not user_id or ride['user_id'] != user_id):
+        flash('This ride is private.', 'error')
+        return redirect(url_for('leaderboard'))
+    
+    ride_dict = dict(ride)
+    
+    # Get bike name if available
+    if ride_dict['bike_id']:
+        bike = query_db('SELECT name, make_model FROM bikes WHERE id = ?', (ride_dict['bike_id'],), one=True)
+        if bike:
+            bike_name = bike['name'] or ''
+            make_model = bike['make_model'] or ''
+            if bike_name and make_model:
+                ride_dict['bike_display_name'] = f"{bike_name} ({make_model})"
+            elif bike_name:
+                ride_dict['bike_display_name'] = bike_name
+            elif make_model:
+                ride_dict['bike_display_name'] = make_model
+            else:
+                ride_dict['bike_display_name'] = 'Unknown Bike'
+        else:
+            ride_dict['bike_display_name'] = 'Unknown Bike'
+    else:
+        ride_dict['bike_display_name'] = 'No Bike'
+    
+    # Get GPS points for the map
+    gps_points = query_db(
+        'SELECT latitude, longitude, timestamp FROM gps_points WHERE ride_id = ? ORDER BY timestamp',
+        (ride_id,)
+    )
+    gps_list = [dict(point) for point in gps_points] if gps_points else []
+    
+    # Format the date properly
+    if ride_dict['date']:
+        try:
+            # Try to parse and format the date
+            from datetime import datetime
+            if 'T' in str(ride_dict['date']):
+                dt = datetime.fromisoformat(str(ride_dict['date']).replace('Z', '+00:00'))
+                ride_dict['formatted_date'] = dt.strftime('%B %d, %Y at %I:%M %p')
+            else:
+                ride_dict['formatted_date'] = str(ride_dict['date'])
+        except:
+            ride_dict['formatted_date'] = str(ride_dict['date'])
+    else:
+        ride_dict['formatted_date'] = 'Unknown'
+    
+    # Load photos if they exist
+    if ride_dict.get('photos'):
+        try:
+            import json
+            ride_dict['photos_list'] = json.loads(ride_dict['photos'])
+        except (json.JSONDecodeError, TypeError):
+            ride_dict['photos_list'] = []
+    else:
+        ride_dict['photos_list'] = []
+    
+    return render_template('view_ride.html', ride=ride_dict, gps_points=gps_list)
+
 @app.route('/api/ride/toggle-public', methods=['POST'])
 def toggle_ride_public():
     if 'user_id' not in session:
@@ -2838,11 +3011,20 @@ def api_ride_stop():
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
-    data = request.get_json()
-    ride_id = data.get('ride_id')
-    title = data.get('title', 'My Ride')
-    description = data.get('description', '')
-    is_public = data.get('public', 1)
+    # Handle both FormData (with photos) and JSON (legacy)
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        ride_id = request.form.get('ride_id')
+        title = request.form.get('title', 'My Ride')
+        description = request.form.get('description', '')
+        is_public = request.form.get('public', '1') == 'true' or request.form.get('public') == '1'
+        photos = request.files.getlist('photos')
+    else:
+        data = request.get_json()
+        ride_id = data.get('ride_id')
+        title = data.get('title', 'My Ride')
+        description = data.get('description', '')
+        is_public = data.get('public', 1)
+        photos = []
     
     try:
         # Ensure rides table has all required columns (migration)
@@ -2857,7 +3039,8 @@ def api_ride_stop():
         columns_to_add = {
             'title': 'TEXT DEFAULT "My Ride"',
             'description': 'TEXT DEFAULT ""',
-            'public': 'INTEGER DEFAULT 1'
+            'public': 'INTEGER DEFAULT 1',
+            'photos': 'TEXT DEFAULT "[]"'
         }
         
         for col_name, col_def in columns_to_add.items():
@@ -2891,6 +3074,33 @@ def api_ride_stop():
             WHERE id = ?
         ''', (title, description, stats['distance'], stats['time'], 
               stats['avg_speed'], stats['top_speed'], is_public, ride_id))
+        
+        # Handle photo uploads
+        photo_urls = []
+        if photos:
+            import os
+            upload_dir = os.path.join(app.root_path, 'static', 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            for photo in photos:
+                if photo and photo.filename:
+                    # Generate unique filename
+                    filename = f"ride_{ride_id}_{int(time.time())}_{len(photo_urls)}_{photo.filename}"
+                    filepath = os.path.join(upload_dir, filename)
+                    
+                    # Save the file
+                    photo.save(filepath)
+                    
+                    # Add to photo URLs list
+                    # Use relative path from static folder
+                    photo_urls.append(f"/static/uploads/{filename}")
+                    
+                    print(f"✅ Saved ride photo: {filename}")
+        
+        # Store photos in database
+        import json
+        photos_json = json.dumps(photo_urls)
+        query_db('UPDATE rides SET photos = ? WHERE id = ?', (photos_json, ride_id))
         
         return jsonify({
             'success': True,

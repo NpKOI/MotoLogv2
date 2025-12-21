@@ -5,6 +5,51 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>MotoLog - Add Bike</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+      background: var(--bg-global);
+      color: var(--text);
+    }
+    .form-container {
+      background: var(--bg-global);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .form-card {
+      background: var(--card-bg);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+      box-shadow: var(--shadow-2);
+    }
+    .form-card h2 {
+      color: var(--primary-600);
+    }
+    .form-group label {
+      color: var(--text);
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      background: var(--n-100);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      border-color: var(--primary-500);
+    }
+    .toggle label {
+      color: var(--text);
+    }
+    .upload-btn {
+      background: var(--n-100);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+    }
+    .upload-btn:hover {
+      background: var(--n-200);
+    }
+    .file-preview {
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
   <div class="form-container">
@@ -60,12 +105,12 @@
 
         <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; gap:1rem;">
           <div class="toggle">
-            <label style="font-weight:600; color:#333;">Visibility</label>
+            <label style="font-weight:600; color:var(--text);">Visibility</label>
             <label class="switch">
               <input type="checkbox" name="is_private">
               <span class="knob"></span>
             </label>
-            <div style="color:#888; font-size:0.9rem;">Toggle to mark private</div>
+            <div style="color:var(--muted); font-size:0.9rem;">Toggle to mark private</div>
           </div>
           <div style="text-align:right;">
             <button type="submit" class="btn">Add Bike</button>
@@ -76,6 +121,15 @@
   </div>
 
   <script>
+    // Theme initialization
+    document.addEventListener('DOMContentLoaded', function() {
+      // Apply saved theme
+      const savedTheme = localStorage.getItem('moto_theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark');
+      }
+    });
+
     function updatePreview(input, targetId) {
       const label = document.getElementById(targetId);
       if (!input.files || !input.files.length) { label.textContent = ''; return; }

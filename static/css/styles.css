@@ -124,9 +124,15 @@ color:white; font-weight:800; box-shadow: 0 6px 20px rgba(86,118,240,0.18);
 .navbar a.nav-link{
 color:var(--muted); text-decoration:none; font-weight:600; padding:6px 8px; border-radius:10px;
 transition: all var(--med) var(--ease);
-display:inline-flex; align-items:center; gap:3px; white-space: nowrap; font-size: 0.95rem;
+display:inline-flex; align-items:center; gap:4px; white-space: nowrap; font-size: 0.95rem; line-height: 1;
 }
 .navbar a.nav-link:hover{ background: color-mix(in srgb, var(--primary-500) 8%, transparent); color:var(--primary-600); transform:translateY(-2px); }
+
+/* Responsive navbar */
+@media (max-width: 768px) {
+  .navbar .nav-left { flex-wrap: wrap; overflow: visible; gap: 6px; }
+  .navbar a.nav-link { font-size: 0.9rem; padding: 4px 6px; }
+}
 
 /* Right area (messages, search, profile) */
 .nav-actions{ margin-left:auto; display:flex; gap:10px; align-items:center; }

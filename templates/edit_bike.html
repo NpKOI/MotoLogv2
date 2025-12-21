@@ -5,6 +5,51 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>MotoLog - Edit Bike</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    body {
+      background: var(--bg-global);
+      color: var(--text);
+    }
+    .form-container {
+      background: var(--bg-global);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .form-card {
+      background: var(--card-bg);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+      box-shadow: var(--shadow-2);
+    }
+    .form-card h2 {
+      color: var(--primary-600);
+    }
+    .form-group label {
+      color: var(--text);
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      background: var(--n-100);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      border-color: var(--primary-500);
+    }
+    .toggle label {
+      color: var(--text);
+    }
+    .upload-btn {
+      background: var(--n-100);
+      border: 1px solid var(--n-300);
+      color: var(--text);
+    }
+    .upload-btn:hover {
+      background: var(--n-200);
+    }
+    .file-preview {
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
   <div class="form-container">
@@ -43,7 +88,7 @@
         </div>
 
         <div class="form-group">
-          <label for="bike_image">Update Photo</label>
+          <label for="bike_image">Cover Photo</label>
           {% if bike['image'] %}
             <div style="margin-bottom:0.5rem;">
               <img src="{{ bike['image'] }}" style="max-width:200px; border-radius:8px;">
@@ -51,10 +96,31 @@
           {% endif %}
           <label class="upload-btn">
             <span class="icon">🖼️</span>
-            <span>Choose Photo</span>
+            <span>Choose Cover Photo</span>
             <input class="hidden-file-input" type="file" id="bike_image" name="bike_image" accept="image/*" onchange="updatePreview(this, 'bikePreview')">
           </label>
           <span id="bikePreview" class="file-preview"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="bike_photos">Additional Photos</label>
+          {% if bike.get('additional_photos') %}
+            {% set additional_photos = bike.additional_photos %}
+            {% if additional_photos %}
+              <div style="margin-bottom: 1rem; display: flex; gap: 8px; flex-wrap: wrap;">
+                {% for photo_url in additional_photos %}
+                  <img src="{{ photo_url }}" style="max-width: 100px; max-height: 100px; border-radius: 8px; object-fit: cover;">
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endif %}
+          <label class="upload-btn">
+            <span class="icon">📸</span>
+            <span>Choose Photos</span>
+            <input class="hidden-file-input" type="file" id="bike_photos" name="bike_photos" accept="image/*" multiple onchange="updatePreview(this, 'photosPreview')">
+          </label>
+          <span id="photosPreview" class="file-preview"></span>
+          <div class="upload-note">JPG, PNG, GIF (max size: 5MB each)</div>
         </div>
 
         <div class="form-group">
@@ -82,8 +148,19 @@
   <script>
     function updatePreview(input, targetId) {
       const label = document.getElementById(targetId);
-      if (!input.files || !input.files.length) { label.textContent = ''; return; }
-      label.textContent = input.files[0].name;
+      if (!input.files || !input.files.length) { 
+        label.textContent = ''; 
+        return; 
+      }
+      
+      if (input.multiple) {
+        // Handle multiple files
+        const fileNames = Array.from(input.files).map(file => file.name);
+        label.textContent = fileNames.join(', ');
+      } else {
+        // Handle single file
+        label.textContent = input.files[0].name;
+      }
     }
   </script>
 </body>

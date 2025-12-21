@@ -452,6 +452,8 @@ function stopRide() {
   // Clear form fields
   document.getElementById('rideTitle').value = '';
   document.getElementById('rideDescription').value = '';
+  document.getElementById('ridePhotos').value = '';
+  document.getElementById('photoPreview').textContent = '';
   document.getElementById('ridePublic').checked = true;
   
   // Show modal
@@ -470,6 +472,7 @@ function submitStopForm(event) {
   const title = document.getElementById('rideTitle').value || 'My Ride';
   const description = document.getElementById('rideDescription').value || '';
   const isPublic = document.getElementById('ridePublic').checked;
+  const photos = document.getElementById('ridePhotos').files;
   const saveBtn = document.getElementById('saveRideBtn');
   
   if (!title.trim()) {
@@ -482,18 +485,25 @@ function submitStopForm(event) {
   saveBtn.classList.add('loading');
   saveBtn.textContent = 'Saving...';
   
-  // Send stop request
+  // Create FormData for file upload
+  const formData = new FormData();
+  formData.append('ride_id', currentRideId);
+  formData.append('title', title);
+  formData.append('description', description);
+  formData.append('public', isPublic);
+  
+  // Add photos if selected
+  if (photos && photos.length > 0) {
+    for (let i = 0; i < photos.length; i++) {
+      formData.append('photos', photos[i]);
+    }
+  }
+  
   console.log('📤 Sending stop request for ride:', currentRideId);
   
   fetch('/api/ride/stop', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ride_id: currentRideId,
-      title: title,
-      description: description,
-      public: isPublic
-    })
+    body: formData
   })
   .then(r => r.json())
   .then(data => {
@@ -801,5 +811,19 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('startBtn').disabled = false;
     document.getElementById('stopBtn').disabled = true;
     document.getElementById('bikeSelect').disabled = false;
+  }
+});
+
+// Add file preview functionality
+document.getElementById('ridePhotos').addEventListener('change', function(e) {
+  const files = e.target.files;
+  const preview = document.getElementById('photoPreview');
+  
+  if (files && files.length > 0) {
+    const fileNames = Array.from(files).map(file => file.name);
+    preview.textContent = fileNames.join(', ');
+    preview.style.color = 'var(--text)';
+  } else {
+    preview.textContent = '';
   }
 });

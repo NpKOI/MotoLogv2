@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MotoLog - {{ ride.title or 'Ride Details' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 400px;
+      width: 100%;
+      border-radius: var(--radius-md);
+      margin: 20px 0;
+    }
+    .ride-details {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-1);
+      margin-bottom: var(--space-lg);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+    }
+    .stat-card {
+      background: var(--n-100);
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .ride-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: var(--space-lg);
+    }
+    .ride-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--text);
+      margin: 0;
+    }
+    .ride-meta {
+      color: var(--muted);
+      margin: var(--space-sm) 0;
+    }
+    .action-buttons {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: var(--space-lg);
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-block;
+      transition: all var(--fast) var(--ease);
+    }
+    .btn-primary {
+      background: var(--primary-500);
+      color: white;
+    }
+    .btn-secondary {
+      background: var(--n-300);
+      color: var(--text);
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-2);
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    {% include '_navbar.html' %}
+    
+    <div style="padding: var(--space-lg);">
+      <div class="ride-details">
+        <div class="ride-header">
+          <div>
+            <h1 class="ride-title">{{ ride.title or 'Untitled Ride' }}</h1>
+            <div class="ride-meta">
+              <span>📅 {{ ride.formatted_date }}</span>
+              {% if ride.bike_display_name != 'No Bike' %}
+              <a href="/bike/{{ ride.bike_id }}?tab=rides" style="color: var(--text); text-decoration: none; margin-left: var(--space-md);">🏍️ {{ ride.bike_display_name }}</a>
+              {% endif %}
+              {% if ride.public == 1 %}
+              <span style="margin-left: var(--space-md); background: var(--primary-500); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">PUBLIC</span>
+              {% else %}
+              <span style="margin-left: var(--space-md); background: var(--n-300); color: var(--muted); padding: 2px 6px; border-radius: 4px; font-size: 10px;">PRIVATE</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        {% if ride.description %}
+        <p style="color: var(--muted); margin-bottom: var(--space-lg);">{{ ride.description }}</p>
+        {% endif %}
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">{{ ride.distance|round(1) }} km</div>
+            <div class="stat-label">Distance</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">
+              {% set hours = ride.time | int %}
+              {% set minutes = ((ride.time - hours) * 60) | round | int %}
+              {% if hours > 0 %}
+                {{ hours }}h{% if minutes > 0 %} {{ minutes }}m{% endif %}
+              {% else %}
+                {{ minutes }}m
+              {% endif %}
+            </div>
+            <div class="stat-label">Duration</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ ride.avg_speed|round(1) }} km/h</div>
+            <div class="stat-label">Avg Speed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ ride.top_speed|round(1) }} km/h</div>
+            <div class="stat-label">Top Speed</div>
+          </div>
+        </div>
+        
+        {% if ride.photos_list and ride.photos_list|length > 0 %}
+        <h3 style="color: var(--text); margin: var(--space-lg) 0 var(--space-md) 0;">Ride Photos</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+          {% for photo_url in ride.photos_list %}
+            <div style="background: var(--card-bg); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-1);">
+              <img src="{{ photo_url }}" alt="Ride photo" style="width: 100%; height: 150px; object-fit: cover;">
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if gps_points %}
+        <h3 style="color: var(--text); margin-bottom: var(--space-md);">Ride Route</h3>
+        <div id="map"></div>
+        {% endif %}
+        
+        <div class="action-buttons">
+          {% if session.get('user_id') and session.get('user_id') == ride.user_id %}
+          <a href="/edit-ride/{{ ride.id }}" class="btn btn-primary">Edit Ride</a>
+          {% endif %}
+          <a href="/ride-history" class="btn btn-secondary">Back to Rides</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if gps_points %}
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([{{ gps_points[0].latitude }}, {{ gps_points[0].longitude }}], 13);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Add route polyline
+    const routeCoords = [
+      {% for point in gps_points %}
+      [{{ point.latitude }}, {{ point.longitude }}]{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+    
+    const route = L.polyline(routeCoords, {
+      color: 'var(--primary-500)',
+      weight: 4,
+      opacity: 0.8
+    }).addTo(map);
+    
+    // Fit map to route bounds
+    map.fitBounds(route.getBounds());
+    
+    // Add start and end markers
+    if (routeCoords.length > 0) {
+      L.marker(routeCoords[0]).addTo(map).bindPopup('Start');
+      L.marker(routeCoords[routeCoords.length - 1]).addTo(map).bindPopup('End');
+    }
+  </script>
+  {% endif %}
+</body>
+</html>
